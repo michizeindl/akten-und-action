@@ -1,0 +1,390 @@
+/* Rahmen für alle Mini-Games: Spielfläche, Anzeige oben, Start- und Endbild.
+   Die Farben setzt rahmen.js aus kunde/kunde.js. */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: var(--dunkel, #151922); color: var(--hell, #fff);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+}
+canvas#feld { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+/* ---------- Anzeige oben ---------- */
+#anzeige {
+  position: fixed; left: 0; right: 0; top: 0; height: 48px; padding: 0 10px;
+  display: flex; align-items: center; gap: 10px; pointer-events: none;
+  font-weight: 700; font-size: 16px; text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+#anzeige .links { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#anzeige .rechts { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#anzeige button, #anzeige a {
+  pointer-events: auto; width: 36px; height: 36px; border-radius: 50%; border: 0;
+  background: rgba(0,0,0,.35); color: #fff; font-size: 17px; cursor: pointer; padding: 0;
+  display: grid; place-items: center; flex: none;
+}
+#anzeige button svg, #anzeige a svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Zettel-Stil („Akten & Action“, MZ 22.10.2026): Haus-Symbol als beschrifteter Knopf „⌂ Zum Menü“, unter 420 px „⌂ Menü“.
+   Passt die Kopfzeile nicht in eine Zeile (rahmen.js setzt dann die Klasse eng), stehen Spielstand und Punkte ordentlich
+   zweizeilig übereinander, damit nichts überläuft oder umbricht. */
+.stil-zettel #anzeige #heimKnopf { width: auto; border-radius: 18px; padding: 0 13px 0 9px; display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 800; white-space: nowrap; text-shadow: none; text-decoration: none; }
+.stil-zettel #heimKnopf .kurz { display: none; }
+@media (max-width: 419px) {
+  .stil-zettel #heimKnopf .lang { display: none; }
+  .stil-zettel #heimKnopf .kurz { display: inline; }
+  .stil-zettel #anzeige #heimKnopf { padding: 0 10px 0 8px; gap: 4px; }
+}
+@media all {
+  .stil-zettel #anzeige.eng { display: grid; grid-template-columns: auto 1fr auto auto; grid-template-rows: 1fr 1fr; column-gap: 8px; row-gap: 0;
+    align-items: center; font-size: 14.5px; line-height: 1.1; }
+  .stil-zettel #anzeige.eng #heimKnopf, .stil-zettel #anzeige.eng button { grid-row: 1 / 3; }
+  .stil-zettel #anzeige.eng #heimKnopf { grid-column: 1; }
+  .stil-zettel #anzeige.eng .links { grid-column: 2; grid-row: 1; align-self: end; }
+  .stil-zettel #anzeige.eng .rechts { grid-column: 2; grid-row: 2; align-self: start; }
+  .stil-zettel #anzeige.eng #tonKnopf { grid-column: 3; }
+  .stil-zettel #anzeige.eng #vollKnopf { grid-column: 4; }
+  .stil-zettel #anzeige.eng #vollKnopf[hidden] { display: none; }
+}
+
+/* ---------- Start- und Endbild ---------- */
+.schirm {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 16px; overflow-y: auto; background: rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.schirm[hidden] { display: none; }
+.karte {
+  width: 100%; max-width: 400px; margin: auto; padding: 22px 22px 20px; text-align: center;
+  background: var(--dunkel); border: 2px solid var(--haupt); border-radius: 18px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.5);
+}
+.karte .logo { display: block; max-width: 70%; max-height: 72px; margin: 0 auto 14px; object-fit: contain; }
+.karte h1 { margin: 0 0 4px; font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
+.karte .unter { margin: 0 0 12px; font-size: 16px; opacity: .85; }
+.karte .anleitung { margin: 0 0 16px; font-size: 14px; line-height: 1.4; opacity: .75; }
+.karte .wert { margin: 6px 0 2px; font-size: clamp(34px, 11vw, 48px); font-weight: 800; color: var(--akzent); font-variant-numeric: tabular-nums; }
+.karte .wert small { font-size: .45em; font-weight: 800; margin-left: 4px; }
+/* statt der Zahl ein kurzer Text (Rahmen.ende(..., { wert: '…' })) */
+.karte .wert.bilanz { font-size: clamp(17px, 4.8vw, 21px); line-height: 1.3; margin: 10px 0 12px; white-space: pre-line; }
+/* optionales Bild im Endbild (Rahmen.ende(..., { bild })) – auf flachen Bildschirmen weggelassen */
+.karte .bild { display: block; width: 100%; height: clamp(110px, 24vh, 210px); margin: 0 0 12px; object-fit: cover; border-radius: 12px; }
+.karte .bild[hidden] { display: none; }
+/* gemessene Zeit als Plakette unter den Punkten */
+.karte .zeit {
+  display: inline-flex; align-items: center; gap: 7px; margin: 6px 0 12px; padding: 5px 14px;
+  border: 1.5px solid rgba(255,255,255,.35); border-radius: 999px; font-size: 16px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.karte .zeit[hidden] { display: none; }
+.karte .zeit svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.karte .bestwert { margin: 0 0 14px; font-size: 14px; opacity: .75; }
+.karte .bestwert.neu { opacity: 1; color: var(--akzent); font-weight: 700; }
+.karte .text { margin: 0 0 16px; font-size: 15px; line-height: 1.4; }
+/* Spielname (Startbild) und Bewertung (Endbild, „Profi-Mechaniker!“) als schräges Band über der oberen Kante */
+#startSchirm, #endSchirm { padding-top: 36px; padding-bottom: 36px; }   /* Platz für das Band, falls die Karte höher als der Bildschirm ist */
+#startSchirm .karte, #endSchirm .karte { position: relative; padding-top: 30px; }
+#startSchirm .titel, #endSchirm .ueberschrift {
+  position: absolute; left: 50%; top: -17px; transform: translateX(-50%) rotate(-3deg);
+  max-width: 92%; margin: 0; padding: 6px 18px; border-radius: 6px;
+  background: var(--haupt); color: var(--haupt-text); font-size: 19px; font-weight: 900; line-height: 1.2;
+  box-shadow: 0 4px 10px rgba(0,0,0,.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#startSchirm .titel { top: -19px; font-size: 22px; }
+#startSchirm .karte { padding-top: 54px; }
+#startSchirm .karte .logo { margin-bottom: 22px; }
+/* Endbild: Auswertung, eine Zeile je Runde mit Balken */
+.karte .auswertung { margin: 0 0 16px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.07); text-align: left; }
+.karte .auswertung[hidden] { display: none; }
+.auswertung .kopf:empty { display: none; }
+.auswertung .kopf { margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; opacity: .6; text-align: center; }
+.auswertung .zeile { display: grid; grid-template-columns: 1fr 70px auto; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; }
+.auswertung .zeile + .zeile { border-top: 1px solid rgba(255,255,255,.08); }
+.auswertung .name { opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auswertung .name small { opacity: .7; }
+.auswertung .balken { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.auswertung .balken i { display: block; height: 100%; border-radius: 3px; background: var(--akzent); }
+.auswertung .zahl { min-width: 64px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.auswertung .zahl small { font-weight: 600; opacity: .6; }
+.auswertung .zeile.schlecht .balken i { background: #ff6b6b; }
+.auswertung .zeile.schlecht .zahl { color: #ff6b6b; }
+.auswertung .zeile.offen { opacity: .4; }
+
+/* Startbild: Frage als Sprechblase, Bestwert als Tafel */
+#startSchirm .unter {
+  position: relative; display: inline-block; margin: 0 0 20px; padding: 10px clamp(12px, 4.5vw, 18px);
+  background: #fff; color: #111; border-radius: 14px; font-size: clamp(15px, 4.8vw, 18px);   /* auf schmalen Handys kleiner, damit einzeilig */ font-weight: 800; line-height: 1.25; opacity: 1;
+}
+#startSchirm .unter:empty { display: none; }
+#startSchirm .unter::after {
+  content: ""; position: absolute; left: 50%; bottom: -9px; margin-left: -9px;
+  border: 9px solid transparent; border-bottom: 0; border-top-color: #fff;
+}
+.besttafel { margin: 0 0 14px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.07); }
+.besttafel[hidden] { display: none; }
+.besttafel .name { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; opacity: .6; }
+.besttafel .zahl { margin-top: 2px; font-size: 30px; font-weight: 800; line-height: 1.1; color: var(--akzent); font-variant-numeric: tabular-nums; }
+.besttafel .zahl small { font-size: .5em; color: var(--hell); opacity: .7; margin-left: 2px; }
+.karte .quellen { margin: 12px 0 0; font-size: 11px; line-height: 1.35; opacity: .5; }
+.karte .quellen:empty { display: none; }
+.knopf {
+  display: block; width: 100%; margin: 8px 0 0; padding: 13px 16px; border-radius: 12px;
+  border: 2px solid var(--haupt); background: var(--haupt); color: var(--haupt-text);
+  font: inherit; font-size: 17px; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.knopf.zweit { background: transparent; color: var(--hell); }
+
+/* ---------- Animationen (dezent) ---------- */
+/* Start- und Endbild: Logo springt herein und schwebt leicht, der Rest gleitet nacheinander hoch */
+@keyframes einGleiten { from { opacity: 0; transform: translateY(14px); } }
+@keyframes logoRein {
+  0% { opacity: 0; transform: scale(.7) rotate(-4deg); }
+  60% { opacity: 1; transform: scale(1.06) rotate(1deg); }
+  100% { transform: none; }
+}
+@keyframes atmen { 50% { transform: scale(1.035); } }
+@keyframes glanz { from { left: -60%; } to { left: 130%; } }
+@keyframes bandRein {
+  0% { opacity: 0; transform: translateX(-50%) rotate(-14deg) scale(1.7); }
+  70% { opacity: 1; transform: translateX(-50%) rotate(-1deg) scale(.95); }
+  100% { transform: translateX(-50%) rotate(-3deg); }
+}
+/* danach pulsiert das Band dauerhaft: wird etwas größer, wippt leicht und leuchtet (wie die gelbe Fläche im Menü) */
+@keyframes bandPuls {
+  0%, 100% { transform: translateX(-50%) rotate(-3deg) scale(1); box-shadow: 0 4px 10px rgba(0,0,0,.45); }
+  50% { transform: translateX(-50%) rotate(-1deg) scale(1.08); box-shadow: 0 4px 10px rgba(0,0,0,.45), 0 0 24px 3px color-mix(in srgb, var(--haupt) 55%, transparent); }
+}
+.schirm:not([hidden]) .karte { animation: einGleiten .35s ease-out both; }
+.schirm:not([hidden]) .karte > :not(.logo):not(.ueberschrift):not(.titel) { animation: einGleiten .45s ease-out both; }
+.schirm:not([hidden]) .karte > :nth-child(2) { animation-delay: .12s; }
+.schirm:not([hidden]) .karte > :nth-child(3) { animation-delay: .19s; }
+.schirm:not([hidden]) .karte > :nth-child(4) { animation-delay: .26s; }
+.schirm:not([hidden]) .karte > :nth-child(5) { animation-delay: .33s; }
+.schirm:not([hidden]) .karte > :nth-child(6) { animation-delay: .40s; }
+.schirm:not([hidden]) .karte > :nth-child(7) { animation-delay: .47s; }
+.schirm:not([hidden]) .karte > :nth-child(n+8) { animation-delay: .54s; }
+.schirm:not([hidden]) .karte .logo { animation: logoRein .7s cubic-bezier(.2,.9,.3,1.3) both; }
+#startSchirm:not([hidden]) .titel, #endSchirm:not([hidden]) .ueberschrift {
+  animation: bandRein .6s .25s cubic-bezier(.2,.9,.3,1.2) both, bandPuls 2.2s 1s ease-in-out infinite;
+}
+
+/* Knöpfe: heben sich beim Überfahren, geben beim Drücken nach; der Hauptknopf „atmet“ und glänzt */
+.knopf { position: relative; overflow: hidden; transition: transform .15s, box-shadow .15s, background-color .15s; }
+.knopf:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+.knopf.zweit:hover { background: rgba(255,255,255,.06); }
+.knopf:active { transform: scale(.97); box-shadow: none; }
+.schirm:not([hidden]) .knopf:not(.zweit) { animation: einGleiten .45s .4s ease-out both, atmen 2.4s 1.2s ease-in-out infinite; }
+.knopf:not(.zweit)::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+  animation: glanz 3.2s 1.5s ease-in-out infinite;
+}
+#anzeige button, #anzeige a { transition: transform .15s, background-color .15s; }
+#anzeige button:hover, #anzeige a:hover { transform: scale(1.1); background: rgba(0,0,0,.5); }
+#anzeige button:active, #anzeige a:active { transform: scale(.92); }
+
+/* Wer weniger Bewegung eingestellt hat, bekommt keine Animationen */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Hohe Bildschirme (Handy hochkant): Karte höher, mehr Luft zwischen den Teilen */
+@media (min-height: 680px) {
+  .karte { padding: 34px 24px 30px; }
+  .karte .logo { margin-bottom: 26px; }
+  #startSchirm .karte .logo { margin-bottom: 34px; }
+  .karte h1 { margin-bottom: 8px; }
+  .karte .unter { margin-bottom: 22px; }
+  .karte .anleitung { margin-bottom: 30px; line-height: 1.5; }
+  .karte .text { margin-bottom: 16px; }
+  .karte .bestwert { margin-bottom: 24px; }
+  #startSchirm .unter { margin-bottom: 24px; }
+  .besttafel { margin-bottom: 24px; }
+  .knopf { margin-top: 14px; padding: 15px 16px; }
+}
+
+/* Kleine Fenster (z. B. flach eingebettet): alles kompakter */
+@media (max-height: 520px) {
+  .karte { padding: 14px 18px; }
+  .karte .logo { max-height: 44px; margin-bottom: 8px; }
+  #startSchirm .karte { padding-top: 34px; }
+  #startSchirm .karte .logo { margin-bottom: 10px; }
+  .karte .unter, #startSchirm .unter { margin-bottom: 8px; }
+  #startSchirm .unter { padding: 6px 14px; font-size: 15px; }
+  .besttafel { margin-bottom: 8px; padding: 6px 10px; }
+  .besttafel .zahl { font-size: 22px; }
+  .karte .anleitung { margin-bottom: 10px; }
+  .karte .wert { font-size: 32px; }
+  .karte .wert.bilanz { font-size: 17px; margin: 4px 0 6px; }
+  .karte .bild { display: none; }
+  .knopf { padding: 9px 14px; font-size: 15px; }
+  .karte .auswertung { margin-bottom: 8px; padding: 6px 10px; }
+  .auswertung .zeile { padding: 1px 0; font-size: 12px; }
+}
+
+/* ---------- Stil „Notizzettel“ (kunde.js: stil: 'zettel' – Sammlung „Akten & Action“, MZ 20.10.2026) ----------
+   Gemaltes Bild bildschirmfüllend, Logo auf eigenem weißen Schild oben links, Texte auf einem schrägen Zettel
+   mit Klebestreifen, Knöpfe unten. Ohne stil gelten nur die Regeln oben (Autohaus unverändert). */
+.stil-zettel .schirm {
+  display: grid; grid-template: "logo" auto "zettel" auto "." 1fr "knoepfe" auto / 100%;   /* Zettel oben (ruhige Bildfläche), Bildmitte frei */
+  justify-items: center; align-items: center;
+  background: var(--dunkel); -webkit-backdrop-filter: none; backdrop-filter: none; overflow: hidden auto;
+}
+.stil-zettel .schirm[hidden] { display: none; }
+.stil-zettel #startSchirm, .stil-zettel #endSchirm { padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
+.stil-zettel .hintergrund { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; z-index: -1; }
+.stil-zettel .hintergrund[hidden] { display: none; }
+.stil-zettel .logoschild {
+  grid-area: logo; justify-self: start; padding: 8px 12px; border-radius: 10px; background: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,.3);
+}
+.stil-zettel .logoschild .logo { display: block; width: clamp(96px, 28vw, 140px); height: auto; }
+.stil-zettel .zettel {
+  grid-area: zettel; position: relative; width: min(100%, 350px); margin: 26px 0 22px; padding: 30px 24px 20px;
+  background: linear-gradient(170deg, #fffdf4, #f7efd6); color: var(--dunkel); text-align: center; border-radius: 3px;
+  box-shadow: 0 16px 30px rgba(0,0,0,.38), 0 2px 5px rgba(0,0,0,.2); transform: rotate(-3deg);
+}
+/* Klebestreifen oben */
+.stil-zettel .zettel::before {
+  content: ""; position: absolute; top: -14px; left: 50%; width: 112px; height: 30px; margin-left: -56px;
+  background: rgba(255,255,255,.6); border: 1px solid rgba(0,0,0,.05); box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  transform: rotate(4deg);
+}
+.stil-zettel #startSchirm .titel, .stil-zettel #endSchirm .ueberschrift {
+  position: static; transform: none; max-width: none; margin: 0 0 10px; padding: 0; border-radius: 0;
+  background: none; box-shadow: none; color: var(--dunkel); white-space: normal; overflow: visible;
+  font-family: Georgia, "Times New Roman", Times, serif; font-style: italic; font-weight: 700;
+  font-size: clamp(30px, 9vw, 40px); line-height: 1.1; animation: none;
+}
+.stil-zettel #startSchirm .unter {
+  display: block; margin: 0 0 12px; padding: 0; background: none; color: var(--dunkel); border-radius: 0;
+  font-size: clamp(16px, 4.6vw, 18px); font-weight: 800; line-height: 1.3;
+}
+.stil-zettel #startSchirm .unter::after { content: none; }
+.stil-zettel .anleitung { margin: 0 0 14px; font-size: 14px; line-height: 1.45; opacity: .8; }
+.stil-zettel .besttafel { margin: 0; padding: 8px 0 0; border-top: 1.5px dashed rgba(0,0,0,.18); border-radius: 0; background: none; font-size: 15px; }
+.stil-zettel .besttafel .name { display: inline; font-size: inherit; letter-spacing: 0; text-transform: none; font-weight: 600; opacity: .8; }
+.stil-zettel .besttafel .zahl { display: inline; margin: 0; font-size: inherit; font-weight: 800; color: var(--dunkel); }
+.stil-zettel .besttafel .zahl small { font-size: inherit; color: inherit; opacity: 1; margin: 0; }
+.stil-zettel .quellen { margin: 10px 0 0; font-size: 10px; opacity: .55; }
+.stil-zettel .quellen:empty { display: none; }
+.stil-zettel .wert { margin: 2px 0 2px; font-size: clamp(56px, 17vw, 74px); font-weight: 800; line-height: 1; color: var(--dunkel); font-variant-numeric: tabular-nums; }
+.stil-zettel .wert.bilanz { margin: 4px 0 6px; font-size: clamp(17px, 4.8vw, 20px); font-weight: 800; line-height: 1.35; white-space: pre-line; }
+.stil-zettel .vonzeile { margin: 0 0 12px; font-size: 15px; font-weight: 600; opacity: .8; }
+.stil-zettel .vonzeile:empty { display: none; }
+.stil-zettel .zettel .text { margin: 0 0 8px; font-family: Georgia, "Times New Roman", Times, serif; font-style: italic; font-size: 15px; opacity: .75; }
+.stil-zettel .zettel .text:empty { display: none; }
+.stil-zettel .zettel .bestwert { margin: 0; padding-top: 8px; border-top: 1.5px dashed rgba(0,0,0,.18); font-size: 13px; opacity: .75; }
+.stil-zettel .zettel .bestwert.neu { opacity: 1; font-weight: 800; }
+.stil-zettel .zettel .bild, .stil-zettel .zettel .zeit { display: none; }
+.stil-zettel .knoepfe { grid-area: knoepfe; width: min(100%, 360px); display: flex; flex-direction: column; gap: 10px; }
+.stil-zettel .knoepfe .knopf { margin: 0; text-align: center; box-shadow: 0 6px 16px rgba(0,0,0,.32); }
+.stil-zettel .knoepfe .knopf[hidden] { display: none; }
+.stil-zettel .knoepfe .knopf.zweit { background: #fff; color: var(--dunkel); border-color: #fff; }
+.stil-zettel .knoepfe .knopf.zweit:hover { background: #f1f1f1; }
+/* Auftritt: Zettel wird aufgeklebt, Klebestreifen kommt danach */
+@keyframes aufkleben {
+  0% { opacity: 0; transform: translateY(-36px) rotate(-10deg) scale(1.08); }
+  60% { opacity: 1; transform: translateY(4px) rotate(-2deg) scale(.99); }
+  100% { transform: rotate(-3deg); }
+}
+@keyframes klebeband { from { opacity: 0; transform: rotate(4deg) scaleX(.3); } }
+@keyframes einblenden { from { opacity: 0; } }
+.stil-zettel .schirm:not([hidden]) .hintergrund { animation: einblenden .5s ease-out both; }
+.stil-zettel .schirm:not([hidden]) .logoschild { animation: einGleiten .4s .05s ease-out both; }
+.stil-zettel .schirm:not([hidden]) .zettel { animation: aufkleben .6s .15s cubic-bezier(.2,.9,.3,1.2) both; }
+.stil-zettel .schirm:not([hidden]) .zettel::before { animation: klebeband .3s .7s ease-out both; }
+.stil-zettel .schirm:not([hidden]) .knopf.zweit { animation: einGleiten .45s .5s ease-out both; }
+/* Querformat: Logo und Knöpfe links, Zettel rechts – die Bildmitte bleibt frei */
+@media (orientation: landscape) and (min-width: 600px) {
+  .stil-zettel .schirm { grid-template: "logo zettel" auto ". zettel" 1fr "knoepfe zettel" auto / minmax(220px, 300px) 1fr; justify-items: start; }
+  .stil-zettel .zettel { justify-self: end; width: min(360px, 46vw); margin: 18px 3vw 10px 0; }
+  .stil-zettel .knoepfe { width: 100%; }
+}
+/* Flache Fenster (Handy quer, flach eingebettet): enger */
+@media (max-height: 520px) {
+  .stil-zettel #startSchirm, .stil-zettel #endSchirm { padding: 10px 14px 12px; }
+  .stil-zettel .logoschild { padding: 6px 10px; }
+  .stil-zettel .logoschild .logo { width: 96px; }
+  .stil-zettel .zettel { padding: 20px 18px 12px; }
+  .stil-zettel #startSchirm .titel, .stil-zettel #endSchirm .ueberschrift { font-size: 28px; margin-bottom: 6px; }
+  .stil-zettel #startSchirm .unter { font-size: 15px; margin-bottom: 8px; }
+  .stil-zettel .anleitung { font-size: 12.5px; margin-bottom: 8px; line-height: 1.35; }
+  .stil-zettel .wert { font-size: 46px; }
+  .stil-zettel .vonzeile { margin-bottom: 6px; font-size: 14px; }
+  .stil-zettel .knoepfe { gap: 8px; }
+}
+/* Zettel-Stil ruhig: Hauptknopf glänzt, „atmet“ aber nicht (kein Pulsieren, MZ 20.10.2026) */
+.stil-zettel .schirm:not([hidden]) .knopf:not(.zweit) { animation: einGleiten .45s .4s ease-out both; }
+/* kleine Zusatzzeile unter Punkten/Zeit (Rahmen.ende(..., { zeile })), z. B. Fristen-Bilanz beim Sieger */
+.stil-zettel .bilanzzeile { margin: -6px 0 12px; font-size: 13px; line-height: 1.35; opacity: .75; }
+.stil-zettel .bilanzzeile:empty { display: none; }
+/* Querformat ab 500px Breite: Zettel rechts (auch kleine Handys quer, z. B. 568×320) */
+@media (orientation: landscape) and (min-width: 500px) {
+  .stil-zettel .schirm { grid-template: "logo zettel" auto ". zettel" 1fr "knoepfe zettel" auto / minmax(190px, 300px) 1fr; justify-items: start; }
+  .stil-zettel .zettel { justify-self: end; width: min(400px, 54vw); margin: 18px 3vw 10px 12px; }
+  .stil-zettel .knoepfe { width: 100%; }
+}
+/* Sehr niedrige Fenster (Handy quer, ≤ 400px hoch): Zettel und Knöpfe kompakt, damit alles ohne Scrollen passt */
+@media (max-height: 400px) {
+  .stil-zettel #startSchirm, .stil-zettel #endSchirm { padding: 8px 12px 10px; }
+  .stil-zettel .logoschild { padding: 5px 8px; }
+  .stil-zettel .logoschild .logo { width: 84px; }
+  .stil-zettel .zettel { padding: 16px 14px 8px; margin: 12px 2vw 6px 10px; }
+  .stil-zettel .zettel::before { top: -11px; width: 84px; height: 22px; margin-left: -42px; }
+  .stil-zettel #startSchirm .titel, .stil-zettel #endSchirm .ueberschrift { font-size: 24px; margin-bottom: 4px; }
+  .stil-zettel #startSchirm .unter { font-size: 14px; margin-bottom: 5px; }
+  .stil-zettel .anleitung { font-size: 11.5px; line-height: 1.3; margin-bottom: 6px; }
+  .stil-zettel .besttafel { padding-top: 5px; font-size: 13px; }
+  .stil-zettel .wert { font-size: 40px; }
+  .stil-zettel .wert.bilanz { font-size: 16px; }
+  .stil-zettel .vonzeile { font-size: 13px; margin-bottom: 8px; }
+  .stil-zettel .bilanzzeile { font-size: 12px; margin-bottom: 6px; }
+  .stil-zettel .zettel .text { font-size: 13px; margin-bottom: 4px; }
+  .stil-zettel .zettel .bestwert { padding-top: 4px; font-size: 12px; }
+  .stil-zettel .knoepfe { gap: 6px; }
+  .stil-zettel .knoepfe .knopf { padding: 8px 12px; font-size: 15px; }
+}
+/* Kleine Handys hochkant (z. B. 320×568): etwas enger, damit die Knöpfe ohne Scrollen passen */
+@media (orientation: portrait) and (max-height: 620px) {
+  .stil-zettel .zettel { margin: 18px 0 12px; padding: 24px 18px 14px; }
+  .stil-zettel #startSchirm .titel, .stil-zettel #endSchirm .ueberschrift { font-size: 28px; margin-bottom: 6px; }
+  .stil-zettel .wert { font-size: 48px; }
+  .stil-zettel .knoepfe { gap: 8px; }
+  .stil-zettel .knoepfe .knopf { padding: 11px 14px; }
+}
+/* Klebestreifen deutlicher (MZ, 21.10.2026): mattes, leicht gelbliches Klebeband mit feiner Randlinie,
+   abgerissenen (gezackten) Enden und dezentem Schatten – auf heller und dunkler Fläche erkennbar */
+.stil-zettel .zettel::before, .stil-zettel .zettel::after {
+  --band: polygon(3% 0, 97% 0, 100% 12%, 96.5% 25%, 100% 38%, 97% 50%, 100% 63%, 96.5% 76%, 100% 88%, 97% 100%,
+                  3% 100%, 0 88%, 3.5% 76%, 0 63%, 3% 50%, 0 38%, 3.5% 25%, 0 12%);
+  content: ""; position: absolute; top: -15px; left: 50%; width: 118px; height: 32px; margin-left: -59px;
+  border: 0; box-shadow: none; -webkit-clip-path: var(--band); clip-path: var(--band); transform: rotate(4deg);
+}
+.stil-zettel .zettel::before {
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(110,98,62,.45) 0 1px, transparent 1px calc(100% - 1px), rgba(110,98,62,.45) calc(100% - 1px)),
+    linear-gradient(90deg, rgba(255,255,255,.18), rgba(255,255,255,0) 30%, rgba(255,255,255,.12) 70%, rgba(255,255,255,0)),
+    linear-gradient(180deg, rgba(251,246,220,.9), rgba(240,231,196,.88));
+}
+/* Schatten des Klebebands: gleiche Form, etwas versetzt und weich */
+.stil-zettel .zettel::after {
+  z-index: 1; margin-top: 2px; margin-left: -58px; background: rgba(0,0,0,.28); filter: blur(1.2px);
+}
+.stil-zettel .schirm:not([hidden]) .zettel::after { animation: klebeband .3s .7s ease-out both; }
+@media (max-height: 400px) {
+  .stil-zettel .zettel::before, .stil-zettel .zettel::after { top: -12px; width: 90px; height: 24px; margin-left: -45px; }
+  .stil-zettel .zettel::after { margin-left: -44px; }
+}
+/* Endbild-Zettel: kleine Dachzeile über der Bewertung und hervorgehobener Hinweis (z. B. Level freigeschaltet) */
+.stil-zettel .dachzeile { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; opacity: .6; }
+.stil-zettel .dachzeile:empty, .stil-zettel .hinweis:empty { display: none; }
+.stil-zettel .hinweis {
+  display: inline-block; margin: 0 0 12px; padding: 5px 12px; border-radius: 999px;
+  background: var(--haupt); color: var(--haupt-text); font-size: 14px; font-weight: 800;
+}
+@media (max-height: 400px) { .stil-zettel .hinweis { margin-bottom: 6px; padding: 3px 10px; font-size: 12.5px; } }
+/* Spielname auf dem Zettel in der Markenfarbe (abgedunkelt für genug Kontrast, berechnet in rahmen.js) */
+.stil-zettel #startSchirm .titel { color: var(--titel-farbe, var(--dunkel)); }
+/* Bewertung im Endbild in derselben Markenfarbe wie der Spielname im Startbild (MZ, 22.10.2026) */
+.stil-zettel #endSchirm .ueberschrift { color: var(--titel-farbe, var(--dunkel)); }
