@@ -9,6 +9,7 @@
   const BLAUGRAU = F.blaugrau || '#475e6c';     // zweite Hausfarbe: Korbschilder, Kopf des Aktenschilds
   const WARNUNG = '#d9483b';                     // Uhr kurz vor Ablauf, falscher Korb, Stempel
   const GUT = '#5f9e3a';                         // Haken bei richtigem Korb
+  const RUHIG = matchMedia('(prefers-reduced-motion: reduce)').matches;   // weniger Bewegung (Erklärungs-Zettel)
 
   // ---------- Inhalte ----------
   // Körbe von links nach rechts. ­ = Trennstelle, falls ein Wort auf schmalen Handys nicht in eine Zeile passt.
@@ -271,7 +272,7 @@
     [140, false, 'Vorwurf: Betrug mit fremder Bankkarte', 6],
   ].map(([nr, leicht, text, korb]) => ({ nr, leicht, teil: 'A', bereich: 'Neuer Fall', text: text.replace(/ – /g, '\u00A0– '), korb }));
 
-  // ---------- Level 3 „Was ist zu tun?“ ----------
+  // ---------- Level 3 „Vorgehen“ (MZ, 22.10.2026; vorher „Was ist zu tun?“) ----------
   // Körbe (MZ, 22.10.2026); Trennstellen für schmale Handys (z. B. „Kein Hand-/lungsbedarf“)
   const KOERBE3 = ['Einspruch', 'Wider­spruch', 'Klage', 'Rück­sprache', 'Kein Hand­lungs­bedarf'];
   // Wortgetreu aus Anwalt-Game/Material/Texte/frist-alarm-level3-entwurf.md (Nr. 1–100, Entwurf, MZ prüft noch).
@@ -389,7 +390,7 @@
     { nr: 2, name: 'Rechtsgebiete', id: 'frist-alarm-2', koerbe: KOERBE2, akten: AKTEN2,
       tempo: { anfang: 7, ende: 5, teilB: 0 },          // Richtwert 7s → 5s (Lesen + 7 Körbe)
       anleitung: 'Tippe das Rechtsgebiet an, zu dem der Fall gehört – bevor die Uhr abläuft. Je schneller, desto mehr Punkte. Nach drei versäumten Fristen ist das Spiel vorbei. Ab 5 richtigen Akten wird Level 3 freigeschaltet.' },
-    { nr: 3, name: 'Was ist zu tun?', id: 'frist-alarm-3', koerbe: KOERBE3, akten: AKTEN3,
+    { nr: 3, name: 'Vorgehen', id: 'frist-alarm-3', koerbe: KOERBE3, akten: AKTEN3,
       tempo: { anfang: 8, ende: 6, teilB: 0 },          // Richtwert 8s → 6s (Lesen + Nachdenken)
       anleitung: 'Tippe an, was zu tun ist\u00A0– bevor die Uhr abläuft. Je schneller, desto mehr Punkte. Nach drei versäumten Fristen ist das Spiel vorbei.' },
   ];
@@ -409,9 +410,9 @@
   const FREI_AB = 5;            // nächstes Level erst ab 5 richtig abgelegten Akten (MZ, Player-Test 22.10.2026)
   const VORN = 5;
   const MAX_VERSAEUMT = 3;      // dritte versäumte Frist = Abbruch mit 0 Punkten
-  // Punkte je Akte (höchstens 100 × 10 = 1.000): volle 100 nur in der ersten 1,0s, danach linear bis 40 bei Ablauf.
+  // Punkte je Akte (höchstens 100 × 10 = 1.000): volle 100 in den ersten 2,5s (MZ, 22.10.2026; vorher 1,0s), danach linear bis 40 bei Ablauf.
   // Falscher Korb = 0 Punkte (keine versäumte Frist). Abgelaufen = 0 Punkte und versäumte Frist.
-  const PUNKTE = { voll: 100, letzt: 40, vollBis: 1.0 };
+  const PUNKTE = { voll: 100, letzt: 40, vollBis: 2.5 };
   // Ablauf in Sekunden: Akte fliegt herein, in den Korb, Stempel bei versäumter Frist, Pause bis zur nächsten Akte
   const DAUER = { titel: 2.5, titelAus: 0.4, erst: 0.4, rein: 0.42, raus: 0.32, pause: 0.3, stempel: 1.05, fallen: 0.4, schild: 1.2, falsch: 1.5 };
 
@@ -602,6 +603,23 @@
 
   // ---------- Zustand ----------
   let akten, nr, phase, phaseT, akte, rest, T, bedenk, punkte, richtigAnz, versaeumt, gesamtZeit, inKorb, schild, gewaehlt, tick, wackeln, flug, verlauf, endeGeplant, sprungEnde, vorgemerkt = null, stempelText = '';
+  // Erklärung nach „Falsch abgelegt“/„Frist versäumt“ (MZ, 22.10.2026): Zettel mit „Richtig wäre: …“ und kurzem Grund aus
+  // erklaerungen.js (Entwurf, MZ prüft), weiter erst mit „Weiter“. Die Akten-Uhr steht so lange; Punkte und Gesamtzeit
+  // (bedenk bzw. T) sind bis dahin schon verbucht und werden nicht verfälscht.
+  const ERKL = window.FRIST_ERKLAERUNGEN || {};
+  const ZETTEL = { ab: 0.5, weiterAb: 0.85, aus: 0.25 };
+  let erkl = null;
+  function erklStarten(kopf) {
+    const grund = (ERKL[LV.nr] || {})[akte.nr] || '';
+    erkl = { kopf, richtig: 'Richtig wäre: ' + korbName(akte.korb), grund, weiterBei: null, druck: 0 };
+  }
+  function erklZu() { return erkl && erkl.weiterBei != null && phaseT >= erkl.weiterBei + (RUHIG ? 0 : ZETTEL.aus); }
+  function weiter() {
+    if (!erkl || erkl.weiterBei != null || (phase !== 'falsch' && phase !== 'stempel') || phaseT < ZETTEL.weiterAb) return false;
+    erkl.weiterBei = phaseT; erkl.druck = 0.24;
+    R_.ton('klick');
+    return true;
+  }
 
   function neu() {
     if (R_.zustand === 'spiel') zuletztMerken();   // nur beim echten Start (neu() läuft auch beim Anmelden)
@@ -612,7 +630,7 @@
     sprungEnde = (/ende=([a-z]+)(?:-(\d+))?/.exec(h) || null);
     phase = 'titel'; phaseT = 0; akte = null; titelTon = false;   // zuerst der Level-Titel (MZ, 22.10.2026)
     punkte = 0; richtigAnz = 0; versaeumt = 0; gesamtZeit = 0;
-    inKorb = LV.koerbe.map(() => 0); schild = null; gewaehlt = null; wackeln = 0; flug = null; verlauf = []; endeGeplant = null;
+    inKorb = LV.koerbe.map(() => 0); schild = null; gewaehlt = null; wackeln = 0; flug = null; verlauf = []; endeGeplant = null; erkl = null;
     anzeigen();
   }
 
@@ -652,12 +670,18 @@
         if (rest <= 0) fristVersaeumt();
       }
     }
-    else if (phase === 'falsch' && phaseT > DAUER.falsch) { phase = 'raus'; phaseT = 0; }   // dann in den richtigen Korb
+    else if (phase === 'falsch' && (erkl ? erklZu() : phaseT > DAUER.falsch)) {   // dann in den richtigen Korb
+      erkl = null; if (schild) schild.dauer = schild.t + DAUER.raus + 0.5;
+      phase = 'raus'; phaseT = 0;
+    }
     else if (phase === 'raus' && phaseT > DAUER.raus) {
       inKorb[gewaehlt]++;
       phase = 'pause'; phaseT = 0;
     }
-    else if (phase === 'stempel' && phaseT > DAUER.stempel) { phase = 'fallen'; phaseT = 0; }
+    else if (phase === 'stempel' && (erkl ? erklZu() : phaseT > DAUER.stempel)) {
+      erkl = null; if (schild) schild.dauer = schild.t + DAUER.fallen + 0.4;
+      phase = 'fallen'; phaseT = 0;
+    }
     else if (phase === 'fallen' && phaseT > DAUER.fallen) {
       if (versaeumt >= MAX_VERSAEUMT) return abbruch();
       phase = 'pause'; phaseT = 0;
@@ -693,7 +717,9 @@
       klang('falsch');
       waage.falsch();
       R_.vibrieren(60);
-      schild = { dauer: DAUER.falsch + DAUER.raus + 0.5, text: 'Falsch – richtig wäre: ' + korbName(akte.korb), gut: false, korb: k, richtigKorb: akte.korb, t: 0 };
+      // Schild bleibt (Kreuz/Haken an den Körben), der Text steht jetzt auf dem Zettel; Dauer setzt „Weiter“
+      schild = { dauer: Infinity, text: 'Falsch – richtig wäre: ' + korbName(akte.korb), gut: false, korb: k, richtigKorb: akte.korb, t: 0, zettel: true };
+      erklStarten('Falsch abgelegt');
     }
     anzeigen();
     return true;
@@ -709,11 +735,12 @@
     klang('versaeumt');
     waage.falsch();
     R_.vibrieren([80, 60, 80]);
-    schild = { text: 'Richtig wäre: ' + korbName(akte.korb), gut: false, richtigKorb: akte.korb, t: 0, dauer: DAUER.stempel + DAUER.fallen + 0.4 };
+    schild = { text: 'Richtig wäre: ' + korbName(akte.korb), gut: false, richtigKorb: akte.korb, t: 0, dauer: Infinity, zettel: true };
+    erklStarten('Frist versäumt');
   }
 
   // ---------- Level-Wahl im Startbild (auf dem Notizzettel) ----------
-  // Drei Reiter: Level 1 – Fristen, Level 2 – Rechtsgebiete, Level 3 – Was ist zu tun?. Gesperrte Level grau mit Schloss;
+  // Drei Reiter: Level 1 – Fristen, Level 2 – Rechtsgebiete, Level 3 – Vorgehen. Gesperrte Level grau mit Schloss;
   // Level 2 vor der Freischaltung mit kurzem Hinweis „nach Level 1“ (kein „demnächst“, MZ 21.10.2026).
   const SCHLOSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   const stil = document.createElement('style');
@@ -885,7 +912,15 @@
     }
     const h = w / seite;
     const uhrR = Math.max(20, Math.min(40, Math.min(w, h) * 0.12));
+    // Erklärungs-Zettel (MZ, 22.10.2026): rechts neben der Akte, wenn dort Platz ist (Querformat); sonst unten bündig über den
+    // Körben (deckt den unteren Teil der Akte mit dem Stempel – der Zettel nennt das Urteil selbst; der Aktentext bleibt oben frei)
+    const akteRechts = B / 2 + w / 2, aCy = oben + uhrR * 0.3 + (aH - uhrR * 0.3) / 2;
+    const zw = Math.min(B - 24, 420);
+    const erklBereich = B - akteRechts - 24 >= 240
+      ? { x: akteRechts + 12, w: Math.min(400, B - akteRechts - 24), top: 52, unten: korbTop - 8, mitte: aCy }
+      : { x: (B - zw) / 2, w: zw, top: Math.max(52, aCy - h * 0.1), unten: korbTop - 8, mitte: null, topMin: 52, hoehe: H };
     return {
+      erkl: erklBereich,
       quer, slots, fs, korbW, korbH, korbTop, ruckY: korbTop - schildRaum / 2 - 2,
       akte: { cx: B / 2, cy: oben + uhrR * 0.3 + (aH - uhrR * 0.3) / 2, w, h, drehen, uhrR },
       fristenY: fristenOben ? 24 : 48 + 12,
@@ -932,9 +967,17 @@
   function runter(x, y) {
     if (!L) return;
     if (phase === 'titel') { phaseT = Math.max(phaseT, DAUER.titel - DAUER.titelAus); return; }   // Tippen überspringt den Titel
+    const zm = erklMasse();
+    if (zm) { const k = zm.weiter; if (x >= k.x - 8 && x <= k.x + k.w + 8 && y >= k.y - 8 && y <= k.y + k.h + 8) weiter(); return; }
     const s = L.slots.find(s => x >= s.x - 2 && x <= s.x + s.w + 2 && y >= s.oben - 16 && y <= s.unten);
     if (s) ablegen(L.slots.indexOf(s));
   }
+
+  // Tastatur: Leertaste/Eingabetaste = „Weiter“ auf dem Erklärungs-Zettel
+  addEventListener('keydown', e => {
+    if (R_.zustand !== 'spiel' || e.repeat || !erkl) return;
+    if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); weiter(); }
+  });
 
   // ---------- Zeichnen ----------
   const glatt = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);   // bremst am Ende
@@ -951,6 +994,7 @@
       zeichneFristen(g, B);
       if (akte && phase !== 'erst' && phase !== 'pause' && phase !== 'fertig') zeichneFliegendeAkte(g, B, H);
       zeichneRueckmeldung(g, B);
+      zeichneErklaerung(g, dt || 0);
       if (phase === 'titel') zeichneLevelTitel(g, B, H);
     }
   }
@@ -1203,7 +1247,9 @@
 
   function zeichneUhr(g, x, y, r) {
     const anteil = phase === 'rein' ? 1 : Math.max(0, rest / T);
-    const knapp = anteil < 0.35 && phase !== 'raus';
+    // falsch abgelegt (MZ, 22.10.2026): die Uhr ist erledigt – grau statt rot, kein Pulsieren
+    const grau = stempelText === 'FALSCH ABGELEGT' && (phase === 'falsch' || phase === 'raus');
+    const knapp = anteil < 0.35 && phase !== 'raus' && !grau;
     const puls = knapp ? 1 + Math.max(0, Math.sin(performance.now() / 1000 * 10)) * 0.07 : 1;
     g.save();
     g.translate(x, y); g.scale(puls, puls);
@@ -1212,9 +1258,9 @@
     g.shadowColor = 'transparent';
     g.beginPath(); g.arc(0, 0, r * 0.8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * anteil);
     g.lineWidth = r * 0.26; g.lineCap = 'butt';
-    g.strokeStyle = knapp ? WARNUNG : F.haupt; g.stroke();
+    g.strokeStyle = grau ? '#b3b9bc' : knapp ? WARNUNG : F.haupt; g.stroke();
     g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = BLAUGRAU; g.stroke();
-    g.fillStyle = knapp ? WARNUNG : '#1c252b';
+    g.fillStyle = grau ? '#8a9398' : knapp ? WARNUNG : '#1c252b';
     g.font = `800 ${r * 0.72}px ${SCHRIFT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(String(Math.max(0, Math.ceil(phase === 'rein' ? T : rest))), 0, r * 0.04);
     g.restore();
@@ -1248,7 +1294,7 @@
 
   // Rückmeldung als Schild über den Körben
   function zeichneRueckmeldung(g, B) {
-    if (!schild) return;
+    if (!schild || schild.zettel) return;   // Fehler: Text steht auf dem Erklärungs-Zettel
     const t = schild.t, a = Math.min(1, t / 0.12) * Math.min(1, (schild.dauer - t) / 0.25);
     if (a <= 0) return;
     const fs = Math.max(14, Math.min(18, B * 0.042));
@@ -1262,6 +1308,100 @@
     g.lineWidth = 2; g.strokeStyle = schild.gut ? GUT : WARNUNG; g.stroke();
     g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(schild.text, B / 2, y + 1, B - 30);
+    g.restore();
+  }
+
+  // ---------- Erklärungs-Zettel nach einem Fehler (MZ, 22.10.2026) ----------
+  // heller Zettel mit Klebestreifen: Kopf „Falsch abgelegt“/„Frist versäumt“ in Warnfarbe, groß „Richtig wäre: …“,
+  // darunter der Grund (nie unter 13 px), unten „Weiter“ in der Markenfarbe
+  const messG = document.createElement('canvas').getContext('2d');
+  let erklM = null, erklML = null, erklMFuer = null;
+  function erklMasse() {
+    if (!erkl || !L || (phase !== 'falsch' && phase !== 'stempel')) return null;
+    if (erklM && erklML === L && erklMFuer === erkl) return erklM;
+    const r = L.erkl, g = messG, w = r.w, pad = w < 300 ? 12 : 16, innen = w - 2 * pad;
+    const hMax = r.unten - (r.topMin != null ? r.topMin : r.top);
+    let fs = Math.max(14, Math.min(19, w * 0.05)), m;
+    for (;;) {
+      const fk = fs * 0.95, fr = Math.max(14, fs * 1.08), ft = Math.max(13, fs * 0.95), kh = Math.max(38, Math.min(48, fs * 2.5));
+      g.font = `800 ${fr}px ${SCHRIFT}`; const richtigZ = umbrechenFrei(g, erkl.richtig, innen);
+      g.font = `700 ${ft}px ${SCHRIFT}`; const grundZ = erkl.grund ? umbrechenFrei(g, erkl.grund, innen - 11) : [];
+      const o = {}; let y = pad;
+      o.kopf = y + fk; y += fk * 1.4;
+      o.richtig = y; y += richtigZ.length * fr * 1.25;
+      if (grundZ.length) { y += 6; o.grund = y; y += grundZ.length * ft * 1.3; }
+      y += 14; o.weiter = y; y += kh;
+      m = { w, h: y + pad, fs, fk, fr, ft, kh, pad, innen, richtigZ, grundZ, o };
+      if (m.h <= hMax || fs <= 12) break;
+      fs -= 0.5;
+    }
+    m.x = r.x;
+    if (r.mitte != null) m.y = Math.max(r.top, Math.min(r.mitte - m.h / 2, r.unten - m.h));
+    else {
+      // unten bündig über den Körben; würde das den Aktentext verdecken, rutscht der Zettel tiefer über die Körbe
+      // (die sind während der Erklärung ohnehin gesperrt) – der Text der Akte bleibt lesbar
+      const textUnten = L.akte.cy + schildUnten + 10;
+      m.y = Math.max(r.topMin != null ? r.topMin : r.top, r.unten - m.h);
+      if (schildUnten && m.y < textUnten) m.y = Math.min(textUnten, r.hoehe - 8 - m.h);
+    }
+    m.weiter = { x: m.x + pad, y: m.y + m.o.weiter, w: innen, h: m.kh };
+    erklM = m; erklML = L; erklMFuer = erkl;
+    return m;
+  }
+  function zeichneErklaerung(g, dt) {
+    const m = erklMasse();
+    if (!m) return;
+    const t = phaseT - ZETTEL.ab;
+    if (t <= 0) return;
+    if (erkl.druck) erkl.druck = Math.max(0, erkl.druck - dt);
+    const rein = RUHIG ? 1 : glatt(t / 0.3);
+    const aus = erkl.weiterBei == null ? 0 : RUHIG ? 1 : beschl((phaseT - erkl.weiterBei) / ZETTEL.aus);
+    const sicht = Math.min(RUHIG ? Math.min(1, t / 0.2) : rein, 1 - aus);
+    if (sicht <= 0) return;
+    g.save();
+    g.globalAlpha = sicht;
+    g.translate(m.x + m.w / 2, m.y + m.h / 2 + (1 - rein) * 18); g.rotate(-0.012);
+    const x0 = -m.w / 2, y0 = -m.h / 2, p = m.pad, o = m.o;
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 16; g.shadowOffsetY = 6;
+    const pap = g.createLinearGradient(0, y0, 0, -y0);
+    pap.addColorStop(0, '#fffdf4'); pap.addColorStop(1, '#f4ecd3');
+    g.fillStyle = pap; g.fillRect(x0, y0, m.w, m.h);
+    g.restore();
+    const kw = Math.min(90, m.w * 0.3);   // Klebestreifen
+    g.save(); g.translate(0, y0); g.rotate(0.05);
+    g.fillStyle = 'rgba(248,242,212,.92)'; g.shadowColor = 'rgba(0,0,0,.2)'; g.shadowBlur = 3; g.shadowOffsetY = 1;
+    g.fillRect(-kw / 2, -8, kw, 16);
+    g.shadowColor = 'transparent'; g.strokeStyle = 'rgba(110,98,62,.35)'; g.lineWidth = 1; g.strokeRect(-kw / 2, -8, kw, 16);
+    g.restore();
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillStyle = WARNUNG; g.font = `900 ${m.fk}px ${SCHRIFT}`;
+    if ('letterSpacing' in g) g.letterSpacing = '0.5px';
+    g.fillText(erkl.kopf.toUpperCase(), x0 + p, y0 + o.kopf, m.innen);
+    if ('letterSpacing' in g) g.letterSpacing = '0px';
+    g.fillStyle = '#1c252b'; g.font = `800 ${m.fr}px ${SCHRIFT}`;
+    m.richtigZ.forEach((z, i) => g.fillText(z, x0 + p, y0 + o.richtig + (i + 1) * m.fr * 1.25 - m.fr * 0.25));
+    if (m.grundZ.length) {
+      g.fillStyle = WARNUNG; g.fillRect(x0 + p, y0 + o.grund + 1, 3, m.grundZ.length * m.ft * 1.3 - 2);
+      g.fillStyle = BLAUGRAU; g.font = `700 ${m.ft}px ${SCHRIFT}`;
+      m.grundZ.forEach((z, i) => g.fillText(z, x0 + p + 11, y0 + o.grund + (i + 1) * m.ft * 1.3 - m.ft * 0.3));
+    }
+    const k = { x: x0 + p, y: y0 + o.weiter, w: m.innen, h: m.kh };
+    const hell = RUHIG ? (phaseT >= ZETTEL.weiterAb ? 1 : 0.5) : 0.5 + 0.5 * glatt((phaseT - ZETTEL.weiterAb + 0.2) / 0.2);
+    const d = erkl.druck || 0, tief = d > 0 && !RUHIG ? Math.sin(d / 0.24 * Math.PI) : 0;
+    g.save();
+    g.globalAlpha *= hell;
+    g.translate(k.x + k.w / 2, k.y + k.h / 2 + tief * 2); g.scale(1 - tief * 0.04, 1 - tief * 0.04);
+    g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 10; g.shadowOffsetY = 4;
+    runderKasten(g, -k.w / 2, -k.h / 2, k.w, k.h, Math.min(16, k.h / 2));
+    const v = g.createLinearGradient(0, -k.h / 2, 0, k.h / 2);
+    v.addColorStop(0, R_.toenen(F.haupt, 0.12)); v.addColorStop(1, R_.toenen(F.haupt, -0.12));
+    g.fillStyle = v; g.fill();
+    g.shadowColor = 'transparent'; g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.55)'; g.stroke();
+    g.fillStyle = F.hauptText || R_.textFarbe(F.haupt); g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `900 ${Math.round(Math.min(k.h * 0.42, 22))}px ${SCHRIFT}`;
+    g.fillText('Weiter', 0, 1);
+    g.restore();
     g.restore();
   }
 
@@ -1282,6 +1422,12 @@
     zeitFuer, punkteFuer, stufe, auswahl, passt, bilanz, frei,
     pruefen: (akteNr, korb, lv) => LEVEL[(lv || LV.nr) - 1].akten.find(a => a.nr === akteNr).korb === korb,
     tippe: k => ablegen(k),
+    weiter: () => weiter(),
+    get erklaerung() {
+      const m = erklMasse();
+      return erkl && { kopf: erkl.kopf, richtig: erkl.richtig, grund: erkl.grund, weiterBei: erkl.weiterBei,
+        masse: m && { x: m.x, y: m.y, w: m.w, h: m.h, ft: m.ft }, weiter: m && { x: m.weiter.x + m.weiter.w / 2, y: m.weiter.y + m.weiter.h / 2 } };
+    },
     level: n => levelWaehlen(n),
     freischaltungZuruecksetzen: () => { try { localStorage.removeItem(FREI_KEY); } catch (e) { /* privat */ } wahlAufbauen(); },
     // Mitte jedes Korbs (zum echten Antippen per Zeiger)

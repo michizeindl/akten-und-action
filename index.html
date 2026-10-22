@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/favicon.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#1f2a31">
+<meta name="theme-color" content="#ffffff">   <!-- weiß wie der Logo-Balken (MZ, 22.10.2026); die Spiele behalten #91a534 -->
 <meta name="apple-mobile-web-app-title" content="Akten & Action">
 <style>
   /* Startseite „Akten & Action“ – Layout B „Schreibtisch“ (MZ, 20.10.2026):
@@ -25,18 +25,28 @@
     min-height: 100vh; min-height: 100dvh;
     -webkit-tap-highlight-color: transparent;
   }
-  .oben { display: flex; flex-direction: column; align-items: center; }
-  /* Logo: eigenes weißes Schild, nichts anderes darauf */
-  .logoschild {
-    background: #fff; border-radius: 12px; padding: 12px 18px; box-shadow: 0 6px 16px rgba(0,0,0,.28);
-    transform: rotate(.8deg);
+  /* Hochformat (MZ, 22.10.2026): unter dem Band (Gummiband beim Weiterwischen, Handyleiste) Kundenfarbe statt Holz.
+     html bekommt eine eigene Farbe, damit das Holz nur noch am body liegt; die Fläche außerhalb des body (Overscroll)
+     zeigt die html-Farbe. Oben Weiß wie der Logo-Balken, solange man im oberen Teil der Seite ist (Klasse .unten setzt das Skript). */
+  @media (orientation: portrait) {
+    html { background: #fff; }
+    html.unten { background: var(--akzent); }
   }
-  .logo { width: min(60vw, 300px); height: auto; display: block; }   /* deutlich größer (MZ, 21.10.2026) */
-  /* Querformat/Desktop: Logo-Schild ca. 1,4× größer (MZ, 22.10.2026, Variante A); flache Fenster siehe unten */
-  @media (orientation: landscape) and (min-width: 700px) and (min-height: 521px) { .logo { width: min(84vw, 420px); } }
+  .oben { display: flex; flex-direction: column; align-items: center; }
+  /* Logo (MZ, 22.10.2026): weißer Balken über die volle Breite, bündig am oberen Rand – Gegenstück zum Band unten.
+     Nichts anderes im Balken (Logo steht für sich). Höhe über --logo-h und --balken-pad, damit der Ton-Knopf mittig sitzt. */
+  :root { --logo-h: 62px; --balken-pad: 11px; }
+  .logobalken {
+    align-self: stretch; margin: -22px -14px 0; padding: calc(var(--balken-pad) + env(safe-area-inset-top)) 18px var(--balken-pad);
+    background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); display: flex; justify-content: center;
+    position: relative; z-index: 2;
+  }
+  .logo { height: var(--logo-h); width: auto; max-width: 100%; display: block; }
+  /* Querformat/Desktop: Logo etwas größer; flache Fenster siehe unten */
+  @media (orientation: landscape) and (min-width: 700px) and (min-height: 521px) { :root { --logo-h: 80px; --balken-pad: 13px; } }
   /* Sammlungsname und Gesamt-Bestwert: eigenes Kärtchen, leicht schräg */
   /* .kopf = Lage (Platz, Drehung, Größe), .karte = das weiße Kärtchen selbst (wird animiert, MZ 22.10.2026) */
-  .kopf { margin: 16px 0 0; transform: rotate(-1.5deg); position: relative; }
+  .kopf { margin: 26px 0 0; transform: rotate(-1.5deg); position: relative; }
   .kopf .karte {
     position: relative; padding: 12px 26px 13px; border-radius: 12px; background: #fff; text-align: center;
     box-shadow: 0 8px 20px rgba(0,0,0,.3);
@@ -84,6 +94,10 @@
   .name { margin: 0; font-size: 11.5cqw; font-weight: 900; line-height: 1.1; }
   /* Spielnamen auf allen Akten weiß mit dezentem Schatten (MZ, 22.10.2026), auch auf der grauen */
   .spiel .name { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.5), 0 0 1px rgba(0,0,0,.35); }
+  /* Unterzeile unter dem Spielnamen (MZ, 22.10.2026): kurz, was man tut – weiß auf Grün, klein */
+  .titelblock { display: block; }
+  .zweck { display: block; margin: .45em 0 0; font-size: max(10px, 6.6cqw); font-weight: 700; line-height: 1.2; color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5), 0 0 1px rgba(0,0,0,.35); }
   .etikett {
     margin: 0; width: 100%; padding: 7px 6px; border-radius: 5px; background: #fbfaf6; color: var(--blaugrau);
     font-size: max(10.5px, 7cqw); font-weight: 700; line-height: 1.3; box-shadow: 0 2px 4px rgba(0,0,0,.2);
@@ -98,13 +112,13 @@
   .fuss {
     margin: auto -14px -18px; padding: 14px 18px calc(14px + env(safe-area-inset-bottom)); align-self: stretch;
     background: var(--akzent); color: #fff; box-shadow: 0 -4px 14px rgba(0,0,0,.25);
-    text-shadow: 0 1px 2px rgba(0,0,0,.45), 0 0 1px rgba(0,0,0,.3);   /* Weiß auf hellem Oliv: dezenter Schatten für Lesbarkeit */
+    /* Texte im Band ohne Effekte (MZ, 22.10.2026): kein Schatten, nicht kursiv, nur fett */
     display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 13.5px; line-height: 1.45; position: relative; z-index: 1;
   }
-  .spruch { margin: 0; white-space: nowrap; font-size: 15px; font-weight: 800; font-style: italic; color: #fff; text-align: center; }
+  .spruch { margin: 0; white-space: nowrap; font-size: 15px; font-weight: 800; font-style: normal; color: #fff; text-align: center; }
   .spruch:empty { display: none; }
   /* Impressum und Datenschutz (MZ, 22.10.2026): klein unter dem Spruch, in der Schriftfarbe der Fläche – die einzigen Links im Band */
-  .rechtliches { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; font-style: normal; }
+  .rechtliches { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; font-style: normal; }
   .rechtliches a { color: inherit; text-decoration: underline; text-decoration-color: rgba(255,255,255,.55); text-underline-offset: 2px; }
   .rechtliches a:hover, .rechtliches a:focus-visible { text-decoration-color: currentColor; }
   .rechtliches a + a { margin-left: 14px; }
@@ -137,49 +151,53 @@
     .kontakt { order: 2; flex: 0 0 calc(100% + 48px); margin: 0 -24px -8px; padding: 5px 24px 7px; }
   }
   #tonKnopf {
-    position: fixed; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0;
-    background: rgba(0,0,0,.3); color: #fff; cursor: pointer; display: grid; place-items: center;
+    /* liegt über dem weißen Logo-Balken, senkrecht mittig darin; Fläche in Blaugrau, damit er auf Weiß und Holz lesbar ist */
+    position: fixed; top: calc(env(safe-area-inset-top) + var(--balken-pad) + (var(--logo-h) - 40px) / 2); right: 10px;
+    width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0; z-index: 5;
+    background: var(--blaugrau); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; display: grid; place-items: center;
   }
   #tonKnopf svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   /* Niedrige Hochformate (z. B. 320×640): Logo und Akten etwas kleiner, damit alle drei Akten sichtbar bleiben */
   @media (orientation: portrait) and (max-height: 700px) {
-    .logo { width: min(56vw, 28vh); }
-    .kopf { margin-top: 12px; }
+    :root { --logo-h: 52px; --balken-pad: 9px; }
+    .kopf { margin-top: 20px; }
     .spiele { margin-top: 32px; }
     .spiel { width: min(34vw, 22vh); }
   }
   /* Flache Fenster (eingebettet, Handy quer): alles enger */
   @media (max-height: 520px) {
     body { padding-top: 12px; }
-    .logo { width: min(170px, 30vw); }
-    .logoschild { padding: 6px 12px; }
-    .kopf { margin-top: 10px; }
+    :root { --logo-h: 44px; --balken-pad: 7px; }
+    .logobalken { margin-top: -12px; }
+    .kopf { margin-top: 14px; }
     .kopf .karte { padding: 8px 20px; }
     h1 { font-size: 26px; }
     .spiele { margin-top: 30px; }
     .spiel { width: min(20vw, 140px, 44vh); }
     .fuss { padding-top: 8px; padding-bottom: 8px; font-size: 13px; line-height: 1.3; }
   }
-  /* flach und quer: Logo-Schild und Kärtchen nebeneinander (getrennt, mit Abstand) */
+  /* flach und quer: Logo-Balken oben, Kärtchen darunter (MZ, 22.10.2026) */
   @media (max-height: 520px) and (orientation: landscape) {
     .spiele { margin-bottom: 26px; }   /* mind. 20 px Abstand zum Band (MZ, 22.10.2026) */
-    .oben { flex-direction: row; gap: 22px; }
-    .kopf { margin-top: 0; }
   }
 
-  /* ---------- Animationen (sanft, MZ 22.10.2026): gestaffelt in ca. 1,6s – Logo-Schild, Kärtchen (wie hingeworfen, dreht
+  /* ---------- Animationen (sanft, MZ 22.10.2026): gestaffelt in ca. 1,6s – Logo-Balken gleitet von oben herein, Kärtchen (wie hingeworfen, dreht
      sich auf seine Lage), Akten nacheinander von unten, Waage (blendet ein, pendelt einmal ein), Band gleitet von unten herein.
      Eigene Eigenschaften translate/rotate/scale wirken zusätzlich zu transform – so stören sie weder die vom Skript gesetzte
      Lage des Kärtchens noch das Anheben beim Darüberfahren. ---------- */
   @keyframes rein { from { opacity: 0; translate: 0 -16px; } }
   @keyframes ablegen { from { opacity: 0; translate: 0 44px; rotate: calc(var(--dreh) * 2); } }
   @keyframes fussRein { from { opacity: 0; translate: 0 100%; } }
-  .logoschild { animation: rein .55s .05s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes balkenRein { from { opacity: 0; translate: 0 -100%; } }   /* Gegenstück zum Band unten */
+  .logobalken { animation: balkenRein .6s .05s cubic-bezier(.2,.8,.3,1) both; }
   /* Kärtchen: Auftritt, Wackler und Antippen macht das Skript (Web Animations), siehe kopfAnimieren() */
   .fuss { animation: fussRein .6s 1s cubic-bezier(.2,.8,.3,1) both; }
   /* liegt auf der Stempeluhr-Akte (Querformat): über den Akten, Schatten fällt auf die Akte */
   .kopf.liegt { position: relative; z-index: 3; }
-  @media (orientation: landscape) and (min-width: 700px) and (min-height: 521px) { .kopf.liegt { margin-bottom: -40px; } }
+  /* hohes Querformat: früher -40px wegen des großen Logo-Schilds, mit dem flacheren Logo-Balken (MZ, 22.10.2026) nicht mehr
+     nötig. Flaches Querformat: das Kärtchen steht jetzt unter dem Balken statt daneben – es gibt Platz im Fluss frei,
+     damit die Akten so weit oben bleiben wie bisher */
+  @media (orientation: landscape) and (min-width: 700px) and (max-height: 520px) { .kopf.liegt { margin-bottom: -44px; } }
   .kopf.liegt .karte { box-shadow: 0 10px 22px rgba(0,0,0,.35), 0 2px 5px rgba(0,0,0,.2); }
   /* Querformat/Desktop (MZ, 22.10.2026): Kärtchen nach rechts versetzt (Richtung rechte Akte) und andersherum gekippt –
      wirkt locker hingeworfen. Hochformat bleibt unverändert. */
@@ -187,22 +205,22 @@
     .kopf { --dreh: 8deg; transform: translate(var(--rechts, min(230px, 16vw)), var(--runter, 0px)) rotate(8deg); }
   }
   @media (orientation: landscape) and (min-width: 700px) and (max-height: 520px) {
-    .kopf { --rechts: 36px; --runter: 8px; }   /* flach: steht schon neben dem Logo-Schild, nur leicht weiter rechts */
+    .kopf { --rechts: 36px; --runter: 8px; }   /* flach: unter dem Logo-Balken, leicht nach rechts versetzt */
   }
   .spiel { animation: ablegen .65s cubic-bezier(.2,.8,.3,1.04) both; }
   .spiel:nth-child(1) { animation-delay: .55s; }
   .spiel:nth-child(2) { animation-delay: .7s; }
   .spiel:nth-child(3) { animation-delay: .85s; }
   #tonKnopf { transition: transform .15s, background-color .15s; }
-  #tonKnopf:hover { transform: scale(1.1); background: rgba(0,0,0,.45); }
+  #tonKnopf:hover { transform: scale(1.1); background: var(--dunkel); }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
 </head>
 <body>
+<div class="logobalken"><img class="logo" alt=""></div>
 <div class="oben">
-  <div class="logoschild"><img class="logo" alt=""></div>
   <header class="kopf">
     <span class="staub" aria-hidden="true"></span>
     <div class="karte">
@@ -215,20 +233,20 @@
 <nav class="spiele">
   <a class="spiel" href="anwalt-frist-alarm/" data-id="frist-alarm" data-level="frist-alarm frist-alarm-2 frist-alarm-3">
     <span class="deckel">
-      <p class="name">Frist-Alarm</p>
+      <span class="titelblock"><p class="name">Frist-Alarm</p><span class="zweck">Akten nach Frist sortieren</span></span>
       <p class="etikett best"></p>
     </span>
   </a>
   <a class="spiel" href="anwalt-einspruch/" data-id="einspruch" data-level="einspruch einspruch-2 einspruch-3">
     <span class="deckel">
-      <p class="name">Einspruch!</p>
+      <span class="titelblock"><p class="name">Einspruch!</p><span class="zweck">Widerspruch erheben</span></span>
       <p class="etikett best"></p>
     </span>
   </a>
   <!-- Spiele in Vorbereitung: Klasse „bald“, kein href – nur grau, nicht antippbar, ohne Hinweistext -->
   <a class="spiel" href="anwalt-stempeluhr/" data-id="stempeluhr" data-level="stempeluhr stempeluhr-2 stempeluhr-3">
     <span class="deckel">
-      <p class="name">Stempeluhr</p>
+      <span class="titelblock"><p class="name">Stempeluhr</p><span class="zweck">Arbeitszeit einhalten</span></span>
       <p class="etikett best"></p>
     </span>
   </a>
@@ -252,6 +270,22 @@
     s.setProperty('--haupt', F.haupt); s.setProperty('--haupt-text', F.hauptText || (hell ? '#111' : '#fff'));
     s.setProperty('--blaugrau', F.blaugrau);
     s.setProperty('--akzent', F.akzent); s.setProperty('--dunkel', F.dunkel);   // Band unten (Kontakt)
+    // Hochformat: Rand außerhalb der Seite unten in Kundenfarbe, oben Holz (CSS html.unten). Ab der Seitenmitte gilt „unten“;
+    // passt die Seite ganz aufs Display, ebenfalls – nur beim Ziehen über den oberen Rand (scrollY < 0, iOS) wieder Holz.
+    {
+      const wurzel = document.documentElement;
+      const randFarbe = () => {
+        const y = scrollY, max = Math.max(0, wurzel.scrollHeight - innerHeight);
+        wurzel.classList.toggle('unten', y >= 0 && y >= max / 2);
+      };
+      randFarbe();
+      addEventListener('scroll', randFarbe, { passive: true });
+      addEventListener('resize', randFarbe);
+      // Seitenhöhe ändert sich nach dem Laden und solange das Band von unten hereingleitet
+      if (window.ResizeObserver) new ResizeObserver(randFarbe).observe(document.body);
+      addEventListener('load', randFarbe);
+      document.addEventListener('animationend', randFarbe);
+    }
     // Titelfarbe wie im Rahmen (rahmen.js, Zettel-Stil): farben.titel aus kunde.js, sonst die Markenfarbe so weit
     // abgedunkelt, dass sie auf hellem Papier (#f7efd6) mindestens 3,2:1 Kontrast hat – ergibt dieselbe Farbe wie „Frist-Alarm“
     {
@@ -395,14 +429,12 @@
         unten = a3.offsetTop + a3.offsetHeight;
       } else {                                   // eine Reihe: links daneben
         // Vorschlag B (MZ, 22.10.2026): schräg links über den Akten, Gegenstück zum gekippten Kärtchen rechts.
-        // Linker Rand bei 7 % der Fensterbreite, Spitze auf Höhe der Unterkante des Logo-Schilds, Größe 37 % der
+        // Linker Rand bei 7 % der Fensterbreite, Spitze knapp unter dem Logo-Balken, Größe 37 % der
         // Fensterhöhe – bei Platzmangel kleiner, damit sie die erste Akte nicht berührt.
-        const sp = document.querySelector('.spiele'), lg = document.querySelector('.logoschild');
+        const sp = document.querySelector('.spiele'), lg = document.querySelector('.logobalken');
         const linksX = B * (B <= 1300 ? 0.03 : 0.07), abstand = 20;   // schmale Querformate: näher an den Rand, damit die Waage größer bleibt
-        // Logo-Schild im Querformat 1,4× größer (MZ, 22.10.2026): die Spitze der Waage bleibt trotzdem auf Höhe der
-        // bisherigen Logo-Unterkante (Logo-Bild ohne Vergrößerung), die Waage ist 10 % kleiner (wird von oben aus kleiner)
-        const bild = lg.querySelector('.logo'), gross = logoGross.matches ? bild.offsetHeight * (1 - 1 / 1.4) : 0;
-        const logoUnten = lg.offsetTop + lg.offsetHeight - gross - sp.offsetTop;   // offsetTop: unabhängig von der Einflug-Animation
+        // Logo-Balken (MZ, 22.10.2026): Spitze der Waage 16 px unter dem Balken, die Waage ist 10 % kleiner
+        const logoUnten = lg.offsetTop + lg.offsetHeight + 16 - sp.offsetTop;   // offsetTop: unabhängig von der Einflug-Animation
         s = 0.9 * Math.min(innerHeight * 0.37, (box.left + a1.offsetLeft - abstand - linksX) / (1 + RAND));
         unten = logoUnten + s * W.hoehe / W.groesse;
         links = linksX - box.left;
@@ -425,10 +457,9 @@
       leinwand.style.width = bw + 'px'; leinwand.style.height = bh + 'px';
       leinwand.style.left = (links - s * RAND) + 'px'; leinwand.style.top = (unten - s) + 'px';
     }
-    // Querformat/Desktop (MZ, 22.10.2026): Kärtchen „Akten & Action“ in den freien Bereich zwischen Logo-Schild und der
+    // Querformat/Desktop (MZ, 22.10.2026): Kärtchen „Akten & Action“ in den freien Bereich zwischen Logo-Balken und der
     // rechten Akte, mittig über ihr, um +5° gekippt. Wird bei wenig Platz kleiner; unter 60 % bleibt es neben dem Logo (CSS).
     const kopf = document.querySelector('.kopf'), quer = matchMedia('(orientation: landscape) and (min-width: 700px)');
-    const logoGross = matchMedia('(orientation: landscape) and (min-width: 700px) and (min-height: 521px)');   // wie im CSS
     const KIPP = 20 * Math.PI / 180;   // +20° (MZ, 22.10.2026)
     function kopfPlatzieren() {
       kopf.style.transform = ''; kopf.style.transformOrigin = ''; kopf.classList.remove('liegt');
@@ -438,16 +469,16 @@
       // zuerst „liegt“ setzen: im hohen Querformat gibt das Kärtchen dann 40 px seines Platzes im Fluss frei
       // (größeres Logo, Akten sonst zu nah am Band), danach messen
       kopf.classList.add('liegt');
-      const lg = document.querySelector('.logoschild'), B = document.documentElement.clientWidth;
+      const lg = document.querySelector('.logobalken'), B = document.documentElement.clientWidth;
       const logoUnten = lg.offsetTop + lg.offsetHeight, akteOben = spiele.offsetTop + a3.offsetTop;
       const w = kopf.offsetWidth, h = kopf.offsetHeight;
       const bw = w * Math.cos(KIPP) + h * Math.sin(KIPP), bh = w * Math.sin(KIPP) + h * Math.cos(KIPP);   // Maße gekippt
-      // Größe ca. 1,1× (MZ, 22.10.2026, Variante A; vorher 1,5×): mindestens 12 px unter dem Logo-Schild, im freien Raum
+      // Größe ca. 1,1× (MZ, 22.10.2026, Variante A; vorher 1,5×): mindestens 12 px unter dem Logo-Balken, im freien Raum
       // zwischen Logo und Stempeluhr-Akte mittig, darf die Akte oben leicht überdecken (bis etwa 45 % ihrer Höhe);
       // links nicht über die mittlere Akte, rechts nicht über den Rand.
       const luft = 12, linksMin = spiele.offsetLeft + a2.offsetLeft + a2.offsetWidth + 10, rechtsMax = B - 16;
       const k = Math.min(1.1, (akteOben + a3.offsetHeight * 0.45 - logoUnten - luft) / bh, (rechtsMax - linksMin) / bw);
-      if (k < 0.8) { kopf.classList.remove('liegt'); return; }   // zu eng: CSS-Fassung (neben dem Logo-Schild)
+      if (k < 0.8) { kopf.classList.remove('liegt'); return; }   // zu eng: CSS-Fassung (unter dem Logo-Balken)
       const cx = Math.min(Math.max(spiele.offsetLeft + a3.offsetLeft + a3.offsetWidth / 2, linksMin + bw * k / 2), rechtsMax - bw * k / 2);
       const cy = Math.max(logoUnten + luft + bh * k / 2, (logoUnten + akteOben) / 2);
       kopf.style.transformOrigin = '50% 50%';
@@ -601,6 +632,10 @@
       if (tonAn) an(); else aus();
     });
   })();
+</script>
+<script>
+// Service Worker (MZ, 22.10.2026): Sammlung als App installierbar, zuerst Netz – siehe sw.js
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>

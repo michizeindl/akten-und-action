@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#91a534">
 <title>Frist-Alarm</title>
 <link rel="stylesheet" href="rahmen.css">
 <!-- Hintergrund des Startbilds früh laden (wird in spiel.js umgefärbt) -->
@@ -13,6 +14,11 @@
 <body>
 <script src="kunde/kunde.js"></script>
 <script src="rahmen.js"></script>
+<script src="erklaerungen.js"></script>
 <script src="spiel.js"></script>
+<script>
+// Service Worker (MZ, 22.10.2026): Sammlung als App installierbar, zuerst Netz – siehe sw.js
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('../sw.js').catch(() => {});
+</script>
 </body>
 </html>

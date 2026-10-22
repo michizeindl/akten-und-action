@@ -1,8 +1,8 @@
 // Stempeluhr („Akten & Action“): Arbeitswoche im Zeitraffer (1 Arbeitsstunde = 1,5s). Rechtzeitig „Pause“ und
 // „Feierabend“ tippen; knapp vor der Grenze = volle Punkte, zu spät = Verstoß, drei Verstöße = Abbruch.
-// Level 1 „Arbeitstag“: eine Person, Pause nach 6/9 Std., höchstens 10 Std. (MZ, 22.10.2026).
-// Level 2 „Wer stempelt heute?“: je Tag eine Person mit eigenen Regeln (Azubi, Schwangere) und Rückfragen des Chefs.
-// Level 3 „Die Abteilung“: zwei Personen gleichzeitig, Ruhezeit-Fragen am Morgen, Sonntag mit Frage.
+// Level 1 „Arbeitstag“ (MZ, 22.10.2026, ohne Artikel; zwischenzeitlich „Arbeitswoche“): eine Person, Pause nach 6/9 Std., höchstens 10 Std. (MZ, 22.10.2026).
+// Level 2 „Kollegen“ (MZ, 22.10.2026; vorher „Wer stempelt heute?“): je Tag eine Person mit eigenen Regeln (Azubi, Schwangere) und Rückfragen des Chefs.
+// Level 3 „Abteilung“ (MZ, 22.10.2026; vorher „Die Abteilung“): zwei Personen gleichzeitig, Ruhezeit-Fragen am Morgen, Sonntag mit Frage.
 // Personen, Regeln und Fragen stehen in daten.js (Entwurf, MZ prüft). Vorbild Einspruch!/Frist-Alarm.
 (function () {
   'use strict';
@@ -19,24 +19,27 @@
   // ---------- Daten (daten.js) ----------
   const PERSONEN = window.STEMPELUHR_PERSONEN || { du: { name: '', hinweis: '', pausen: [[6, 0.5], [9, 0.25]], max: 10, bis: null, ruhe: 11, regel: '' } };
   const TAGE2 = window.STEMPELUHR_TAGE2 || [], RUHEZEIT = window.STEMPELUHR_RUHEZEIT || [], SONNTAG = window.STEMPELUHR_SONNTAG || [];
+  const SCHULE = window.STEMPELUHR_SCHULE || [];
   const pers = k => PERSONEN[k] || PERSONEN.du;
+  // alle Figuren für Level 2/3 (MZ, 23.10.2026: 10 Personen, gleich oft)
+  const ALLE = Object.keys(PERSONEN).filter(k => k !== 'du');
 
   // ---------- Level ----------
   // gekürzt (passt bei 320 × 640 samt Knöpfen)
   const ANLEITUNG1 = 'Eine Arbeitswoche im Zeitraffer. Tippe auf „Pause“ spätestens nach 6 und nach 9' + NBSP + 'Stunden Arbeit' + NBSP + '– ' +
     'gern bis zu einer Stunde früher. Tippe auf „Feierabend“ zur geplanten Zeit' + NBSP + '– höchstens nach 10' + NBSP + 'Stunden. ' +
-    'Drei Verstöße beenden das Spiel.';
-  const ANLEITUNG2 = 'Jeden Tag stempelt jemand anderes' + NBSP + '– mit eigenen Regeln: Azubis höchstens 8, Schwangere 8½' + NBSP +
-    'Stunden, beide nicht nach 20' + NBSP + 'Uhr. Die Grenzen stehen auf der Karte. Fragt der Chef, antworte mit „Ja“ oder „Nein“. ' +
-    'Drei Verstöße beenden das Spiel.';
-  const ANLEITUNG3 = 'Zwei Kollegen gleichzeitig' + NBSP + '– jede Karte hat eigene Knöpfe. Achte morgens auf die Ruhezeit ' +
-    '(11' + NBSP + 'Stunden, unter 18 Jahren 12) und sonntags auf die Sonntagsruhe. Drei Verstöße beenden das Spiel.';
+    'Drei Verstöße? Ende!';
+  const ANLEITUNG2 = 'Jeden Tag stempelt wer anderes' + NBSP + '– mit eigenen Regeln: Azubis höchstens 8, Schwangere 8½' + NBSP +
+    'Stunden, beide nicht nach 20' + NBSP + 'Uhr. Die Grenzen stehen auf der Karte. Mach möglichst pünktlich Pausen und Feierabend. Fragt der Chef, antworte mit „Ja“ oder „Nein“. ' +
+    'Drei Verstöße? Ende!';
+  const ANLEITUNG3 = 'Zwei Kollegen gleichzeitig' + NBSP + '– jede Karte hat eigene Knöpfe. Mach möglichst pünktlich Pausen und Feierabend. Achte morgens auf die Ruhezeit ' +
+    '(11' + NBSP + 'Stunden, unter 18 Jahren 12) und sonntags auf die Sonntagsruhe. Drei Verstöße? Ende!';
   // Level (MZ, 22.10.2026): je höchstens 1.000 Punkte, eigener Bestwert, nacheinander freischalten.
   // art: einzeln = eine Person, Uhr springt bei der Pause; abteilung = zwei Personen, Uhr läuft durch
   const LEVEL = [
     { nr: 1, name: 'Arbeitstag', id: 'stempeluhr', gebaut: true, anleitung: ANLEITUNG1, art: 'einzeln', personen: false, tage: 5, wort: 'Stempeln' },
-    { nr: 2, name: 'Wer stempelt heute?', id: 'stempeluhr-2', gebaut: true, anleitung: ANLEITUNG2, art: 'einzeln', personen: true, tage: 5, wort: 'Entscheidungen' },
-    { nr: 3, name: 'Die Abteilung', id: 'stempeluhr-3', gebaut: true, anleitung: ANLEITUNG3, art: 'abteilung', personen: true, tage: 6, wort: 'Entscheidungen' },
+    { nr: 2, name: 'Kollegen', id: 'stempeluhr-2', gebaut: true, anleitung: ANLEITUNG2, art: 'einzeln', personen: true, tage: 5, wort: 'Entscheidungen' },
+    { nr: 3, name: 'Abteilung', id: 'stempeluhr-3', gebaut: true, anleitung: ANLEITUNG3, art: 'abteilung', personen: true, tage: 6, wort: 'Entscheidungen' },
   ];
   let LV = LEVEL[0];
   const FREI_KEY = 'mg:frei:stempeluhr:' + (K.firma || '');
@@ -78,28 +81,39 @@
   const stdZahl = h => String(Math.floor(h)) + (Math.abs(h % 1 - 0.5) < 1e-6 ? '½' : Math.abs(h % 1 - 0.25) < 1e-6 ? '¼' : '');
   // Wertung eines Stempels. art 'pause' | 'feierabend', a = Arbeitszeit, P = geplant, pausen = schon genommene Pausen,
   // person = Schlüssel in daten.js (Standard „du“ = Level 1), uhr = Uhrzeit (für „nicht nach 20 Uhr“)
-  // → { ergebnis: puenktlich | ok | frueh | ueberstunden | knapp | unnoetig | verstoss, anteil (0–1), abzug, grund }
-  function wertung(art, a, P, pausen, person, uhr) {
-    const E = 1e-6, p = pers(person || 'du');
+  // → { ergebnis: puenktlich | ok | frueh | ueberstunden | knapp | unnoetig | verstoss, anteil (0–1), abzug, grund, detail }
+  // grund/detail: Erklärung auf dem Rückmeldungs-Zettel (mit „Weiter“); Pünktlich/OK ohne Erklärung (Supervisor, 22.10.2026)
+  // extra = angerechnete Berufsschulzeit (zählt auf die Höchstzeit, nicht auf die Pausen)
+  function wertung(art, a, P, pausen, person, uhr, extra) {
+    const E = 1e-6, p = pers(person || 'du'), ext = extra || 0;
     if (art === 'pause') {
       if (pausen >= p.pausen.length) return null;
-      const G = p.pausen[pausen][0], grund = 'Über ' + stdZahl(G) + NBSP + 'Std. ohne Pause';
-      if (a > G + TOLERANZ + E) return { ergebnis: 'verstoss', anteil: 0, grund };
-      if (a > G + E) return { ergebnis: 'knapp', anteil: P > G ? KNAPP_ANTEIL : 0, grund: 'Knapp über ' + stdZahl(G) + NBSP + 'Std. ohne Pause' };
-      if (!(P > G)) return { ergebnis: 'unnoetig', anteil: 0, abzug: ABZUG_UNNOETIG, grund: 'Heute war keine Pause nötig' };
+      const G = p.pausen[pausen][0], gs = stdZahl(G) + NBSP + 'Std.', welche = pausen ? (pausen + 1) + '. Pause' : 'Pause';
+      if (a > G + TOLERANZ + E) return { ergebnis: 'verstoss', anteil: 0, grund: 'Über ' + gs + ' ohne Pause', detail: welche + ' spätestens nach ' + gs + ' Arbeit' };
+      if (a > G + E) return { ergebnis: 'knapp', anteil: P > G ? KNAPP_ANTEIL : 0, grund: 'Knapp über ' + gs + ' ohne Pause',
+        detail: welche + ' nach ' + std(a) + ' Arbeit' + NBSP + '– spätestens nach ' + gs };
+      if (!(P > G)) return { ergebnis: 'unnoetig', anteil: 0, abzug: ABZUG_UNNOETIG, grund: 'Heute war keine Pause nötig',
+        detail: 'Geplant: ' + std(P) + NBSP + '– ' + welche + ' erst bei mehr als ' + gs };
       const an = anteilPause((G - PAUSE_VOLL) - a);
       return { ergebnis: an >= 1 ? 'puenktlich' : 'ok', anteil: an };
     }
-    const ueberMax = a - p.max, ueberBis = p.bis != null && uhr != null ? uhr - p.bis : -1;
-    if (ueberMax > TOLERANZ + E) return { ergebnis: 'verstoss', anteil: 0, grund: 'Feierabend verpasst' + NBSP + '– über ' + stdZahl(p.max) + NBSP + 'Std.' };
-    if (ueberBis > TOLERANZ + E) return { ergebnis: 'verstoss', anteil: 0, grund: 'Nach ' + p.bis + NBSP + 'Uhr gearbeitet' };
-    if (ueberMax > E) return { ergebnis: 'knapp', anteil: KNAPP_ANTEIL, grund: 'Knapp über ' + stdZahl(p.max) + NBSP + 'Std.' };
-    if (ueberBis > E) return { ergebnis: 'knapp', anteil: KNAPP_ANTEIL, grund: 'Knapp nach ' + p.bis + NBSP + 'Uhr' };
-    const Pk = Math.min(P, p.max), d = a - Pk;
+    const ueberMax = a + ext - p.max, ueberBis = p.bis != null && uhr != null ? uhr - p.bis : -1, mx = stdZahl(p.max) + NBSP + 'Std.';
+    const mitSchule = ext ? NBSP + '– Berufsschule zählt mit' : '';
+    if (ueberMax > TOLERANZ + E) return { ergebnis: 'verstoss', anteil: 0, grund: 'Feierabend verpasst' + NBSP + '– über ' + mx, detail: 'Höchstens ' + mx + ' Arbeit am Tag' + mitSchule };
+    if (ueberBis > TOLERANZ + E) return { ergebnis: 'verstoss', anteil: 0, grund: 'Nach ' + p.bis + NBSP + 'Uhr gearbeitet', detail: 'Feierabend spätestens um ' + p.bis + NBSP + 'Uhr' };
+    if (ueberMax > E) return { ergebnis: 'knapp', anteil: KNAPP_ANTEIL, grund: 'Knapp über ' + mx,
+      detail: (ext ? 'Mit Berufsschule ' + std(a + ext) : 'Feierabend nach ' + std(a)) + NBSP + '– höchstens ' + mx };
+    if (ueberBis > E) return { ergebnis: 'knapp', anteil: KNAPP_ANTEIL, grund: 'Knapp nach ' + p.bis + NBSP + 'Uhr',
+      detail: 'Feierabend um ' + uhrText(uhr) + NBSP + 'Uhr' + NBSP + '– spätestens ' + p.bis + NBSP + 'Uhr' };
+    const Pk = Math.min(P, p.max - ext), d = a - Pk;
     if (Math.abs(d) <= VOLL + E) return { ergebnis: 'puenktlich', anteil: 1 };
-    if (d < 0) return { ergebnis: 'frueh', anteil: anteilNachAbstand(-d - VOLL) };
-    return { ergebnis: 'ueberstunden', anteil: anteilNachAbstand(d - VOLL) };
+    // Abstand aus den angezeigten Werten (Minuten abgerundet wie auf der Karte)
+    const am = Math.floor(a * 60 + E), pm = Math.round(Pk * 60), detail = 'Geplant: ' + std(Pk) + ', gestempelt nach ' + std(a);
+    if (d < 0) return { ergebnis: 'frueh', anteil: anteilNachAbstand(-d - VOLL), grund: dauerText(pm - am) + ' früher als geplant', detail };
+    return { ergebnis: 'ueberstunden', anteil: anteilNachAbstand(d - VOLL), grund: dauerText(am - pm) + ' länger als geplant', detail };
   }
+  // Minuten → „45 Min.“ bzw. „1:20 Std.“
+  const dauerText = m => m < 60 ? m + NBSP + 'Min.' : Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + NBSP + 'Std.';
   // Antwort auf eine Frage: richtig = volle Punkte; falsches „Ja“ = Verstoß; falsches „Nein“ / keine Antwort = 0 Punkte
   function antwortWertung(frage, antwort) {
     if (antwort == null) return { ergebnis: 'keine', anteil: 0 };
@@ -110,8 +124,11 @@
   const momente = (P, person) => 1 + pers(person || 'du').pausen.filter(([n]) => P > n).length;
   const pausenSumme = (P, person) => pers(person).pausen.filter(([n]) => P > n).reduce((s, x) => s + x[1], 0);
   // Bewertungen (MZ bestätigt, 22.10.2026): gemeinsame Grenzen 900/800/700/550
-  function stufe(p) {
-    return p >= 900 ? 'Punktgenau gestempelt' : p >= 800 ? 'Gut eingeteilt' : p >= 700 ? 'Solide Arbeitswoche' : p >= 550 ? 'Knapp im Rahmen' : 'Viel Zeit verschenkt';
+  // Unter 550 Punkten mit mindestens einem Verstoß passt „Viel Zeit verschenkt“ nicht (Punkte gingen durch Verstöße
+  // verloren, nicht durch Trödeln): dann „Mit Verstößen geschafft“ (MZ, 22.10.2026, nach Spielertest)
+  function stufe(p, verstoesse) {
+    return p >= 900 ? 'Punktgenau gestempelt' : p >= 800 ? 'Gut eingeteilt' : p >= 700 ? 'Solide Arbeitswoche' : p >= 550 ? 'Knapp im Rahmen'
+      : verstoesse > 0 ? 'Mit Verstößen geschafft' : 'Viel Zeit verschenkt';
   }
   const ABBRUCH_TITEL = 'Zu viele Verstöße';
   function zahl(p) { return p.toLocaleString('de-DE'); }
@@ -125,7 +142,12 @@
     return a;
   }
   const zufall = a => a[Math.floor(Math.random() * a.length)];
-  const planListe = person => { const l = []; for (let p = 5; p <= pers(person).max + 1e-6; p += 0.5) l.push(p); return l; };
+  // geplante Längen ohne Frage: plaene der Person (Teilzeit 4–6 Std.), sonst 5 Std. bis Höchstzeit
+  const planListe = person => {
+    const P = pers(person), [von, bis] = P.plaene || [5, P.max], l = [];
+    for (let p = von; p <= Math.min(bis, P.max) + 1e-6; p += 0.5) l.push(p);
+    return l;
+  };
   const ende = (beginn, plan, person) => beginn + plan + pausenSumme(plan, person);
   // freier Tag (ohne Frage) für eine Person: Ende spätestens 30 Min. vor ihrer Uhrzeit-Grenze bzw. 20:30
   function freierTag(person, beginnFest) {
@@ -148,55 +170,85 @@
     }
     return plaene.map((P, i) => ({ name: TAGE[i], leute: [{ person: 'du', beginn: zufall(BEGINN), plan: P, frage: null }] }));
   }
-  // Level 2: 3 Tage mit Rückfrage (verschiedene Personen), 2 freie Tage; jede Person mindestens einmal
-  function woche2(festNr) {
-    const fest = festNr ? TAGE2.find(t => t.nr === festNr) : null;
-    const fragen = fest ? [fest] : [];
-    mischen(['berger', 'lena', 'weiss']).forEach(k => {
-      if (fragen.length < 3 && !fragen.some(t => t.person === k)) fragen.push(zufall(TAGE2.filter(t => t.person === k)));
+  // Berufsschule (§ 9 JArbSchG): mehr als 5 Unterrichtsstunden = Tag zählt 8 Std., sonst die Unterrichtszeit mit Pausen
+  const anrechnung = f => f.ustd > 5 ? 8 : f.bis - f.von;
+  const SCHUL_ANTEIL = 0.4;   // Anteil der Tage einer Person mit Berufsschule, an denen eine Berufsschul-Frage kommt
+  // Eintrag einer Person an einem Berufsschultag: gearbeitet wird nach der richtigen Antwort (wie bei der Ruhezeit-Frage)
+  function schulEintrag(f) {
+    const z = f.antwort === 'ja' ? f.gefragt : f.sonst, e = { person: f.person, frage: null, schule: anrechnung(f), schulDef: f };
+    if (!z) return Object.assign(e, { beginn: f.bis + 0.5, plan: 0, frei: true });
+    return Object.assign(e, { beginn: z[0], plan: z[1] });
+  }
+  const schulMorgen = f => Object.assign({ art: 'schule' }, f);
+  const zuTag = t => ({ person: t.person, beginn: t.beginn, plan: t.plan, frage: t.frage, nr: t.nr });
+  // Level 2 (MZ, 23.10.2026): 5 verschiedene Personen, gleichverteilt aus allen 10; 3 Tage mit Frage (Chef-Frage, bei
+  // Azubis manchmal stattdessen die Berufsschul-Frage am Morgen), 2 Tage ohne Frage
+  function woche2(festNr, festSchule) {
+    const fest = festNr ? TAGE2.find(t => t.nr === festNr) : null, fs = festSchule ? SCHULE.find(f => f.nr === festSchule) : null;
+    const vorn = fest ? fest.person : fs ? fs.person : null;
+    const personen = vorn ? [vorn].concat(mischen(ALLE.filter(k => k !== vorn))) : mischen(ALLE.slice());
+    const tage = personen.slice(0, 3).map((k, i) => {
+      if (i === 0 && fest) return { leute: [zuTag(fest)] };
+      const sch = SCHULE.filter(f => f.person === k);
+      if ((i === 0 && fs) || (sch.length && Math.random() < SCHUL_ANTEIL)) {
+        const f = i === 0 && fs ? fs : zufall(sch);
+        return { leute: [schulEintrag(f)], morgen: schulMorgen(f) };
+      }
+      return { leute: [zuTag(zufall(TAGE2.filter(t => t.person === k)))] };
     });
-    const tage = fragen.map(t => ({ person: t.person, beginn: t.beginn, plan: t.plan, frage: t.frage, nr: t.nr }));
-    for (let i = 0; i < 2; i++) tage.push(freierTag(zufall(['berger', 'lena', 'weiss'])));
-    const reihe = fest ? [tage[0]].concat(mischen(tage.slice(1))) : mischen(tage);
-    return reihe.map((t, i) => ({ name: TAGE[i], leute: [t] }));
+    personen.slice(3, 5).forEach(k => tage.push({ leute: [freierTag(k)] }));
+    const reihe = vorn ? [tage[0]].concat(mischen(tage.slice(1))) : mischen(tage);
+    return reihe.map((t, i) => ({ name: TAGE[i], leute: t.leute, morgen: t.morgen || null }));
   }
   // Zeitpunkte, an denen eine Person stempeln muss (Beginn, ideale Pausen, Feierabend) – für Level 3 ohne Überschneidung
   function ereignisse(t) {
+    if (t.frei) return [];
     const z = [t.beginn]; let summe = 0;
     pers(t.person).pausen.forEach(([n, d]) => { if (t.plan > n) { z.push(t.beginn + n - 0.1 + summe); summe += d; } });
     z.push(t.beginn + t.plan + summe);
     return z;
   }
-  // Level 3: Herr Berger + abwechselnd Lena/Frau Weiß, an 2 Tagen (Di–Fr) eine Ruhezeit-Frage, Sonntag mit einer Frage
-  function woche3(festRuhe, festSonntag) {
-    const erster = zufall(['lena', 'weiss']), zweiter = erster === 'lena' ? 'weiss' : 'lena';
-    const partner = i => i % 2 ? zweiter : erster;
+  // Level 3 (MZ, 23.10.2026): zufällige Paare – jede der 10 Personen arbeitet genau an einem Tag (5 Tage × 2);
+  // an 2 Tagen (Di–Fr) eine Ruhezeit-Frage, an anderen Tagen mit Azubi manchmal eine Berufsschul-Frage; Sonntag mit einer Frage
+  function woche3(festRuhe, festSonntag, festSchule) {
+    const reihe = mischen(ALLE.slice());
     const frageTage = festRuhe ? [1] : mischen([1, 2, 3, 4]).slice(0, 2);
     const benutzt = [];
     const tage = [];
     for (let i = 0; i < 5; i++) {
-      const leute = ['berger', partner(i)];
+      const leute = [reihe[2 * i], reihe[2 * i + 1]];
       let morgen = null;
-      if (frageTage.includes(i)) {
+      const fs = festSchule && i === 1 ? SCHULE.find(f => f.nr === festSchule) : null;
+      if (fs) {
+        if (!leute.includes(fs.person)) leute[1] = fs.person;   // Testhilfe: Person der Frage arbeitet heute
+        morgen = schulMorgen(fs);
+      } else if (frageTage.includes(i)) {
         const pool = RUHEZEIT.filter(f => leute.includes(f.person) && !benutzt.includes(f));
         morgen = (festRuhe && i === 1 ? RUHEZEIT.find(f => f.nr === festRuhe) : null) || (pool.length ? zufall(pool) : null);
         if (morgen && !leute.includes(morgen.person)) leute[1] = morgen.person;   // Testhilfe: Person der Frage arbeitet heute
-        if (morgen) benutzt.push(morgen);
+        if (morgen) { benutzt.push(morgen); morgen = Object.assign({ art: 'ruhe' }, morgen); }
+      } else {
+        const sch = SCHULE.filter(f => leute.includes(f.person));
+        if (sch.length && Math.random() < SCHUL_ANTEIL) morgen = schulMorgen(zufall(sch));
       }
+      const fest = k => morgen && morgen.art === 'schule' && morgen.person === k ? schulEintrag(morgen) : null;
       let paar = null;
       for (let v = 0; v < 600 && !paar; v++) {
         const p = leute.map(k => {
-          const fix = morgen && morgen.person === k ? (morgen.antwort === 'ja' ? morgen.heute : morgen.sonst) : null;
+          if (fest(k)) return fest(k);
+          const fix = morgen && morgen.art === 'ruhe' && morgen.person === k ? (morgen.antwort === 'ja' ? morgen.heute : morgen.sonst) : null;
           return freierTag(k, fix);
         });
         if (p[0].beginn === p[1].beginn) continue;
         const e0 = ereignisse(p[0]), e1 = ereignisse(p[1]);
         if (e0.every(a => e1.every(b => Math.abs(a - b) >= 0.75))) paar = p;
       }
-      if (!paar) paar = leute.map((k, j) => ({ person: k, beginn: 7 + j * 1.5, plan: 6, frage: null }));
-      tage.push({ name: TAGE[i], leute: paar, morgen: morgen ? Object.assign({ art: 'ruhe' }, morgen) : null });
+      if (!paar) paar = leute.map((k, j) => fest(k) || { person: k, beginn: 7 + j * 1.5, plan: 6, frage: null });
+      tage.push({ name: TAGE[i], leute: paar, morgen });
     }
-    const so = (festSonntag ? SONNTAG.find(f => f.nr === festSonntag) : null) || zufall(SONNTAG);
+    // Sonntag: zuerst eine Person gleichverteilt, dann eine ihrer Fragen
+    const wer = zufall([...new Set(SONNTAG.map(f => f.person))]);
+    const so = (festSonntag ? SONNTAG.find(f => f.nr === festSonntag) : null) || zufall(SONNTAG.filter(f => f.person === wer));
     tage.push({ name: TAGE[5], sonntag: true, leute: [], morgen: so ? Object.assign({ art: 'sonntag' }, so) : null });
     return tage;
   }
@@ -235,6 +287,20 @@
       if (!ruheOk(f, f.sonst)) m.push(`L3 Ruhezeit Nr. ${f.nr}: Beginn bei „Nein“ (${uhrText(f.sonst)}) ist selbst nicht erlaubt`);
     });
     SONNTAG.forEach(f => { if (!/^(ja|nein)$/.test(f.antwort)) m.push(`L3 Sonntag Nr. ${f.nr}: Antwort fehlt`); });
+    // Berufsschule: nach dem Unterricht nur bei höchstens 5 Unterrichtsstunden und solange Schule + Arbeit ≤ Höchstzeit;
+    // vor dem Unterricht nur, wenn er nicht vor 9 Uhr beginnt (und die Arbeit vorher endet)
+    SCHULE.forEach(f => {
+      const P = pers(f.person), anr = anrechnung(f), E = 1e-6;
+      if (!P.berufsschule) m.push(`Berufsschule Nr. ${f.nr}: ${f.person} hat keine Berufsschule`);
+      const nach = (b, p) => f.ustd <= 5 && b >= f.bis - E && p + anr <= P.max + E && (P.bis == null || ende(b, p, f.person) <= P.bis + E);
+      const vor = (b, p) => f.von >= 9 - E && ende(b, p, f.person) <= f.von + E && p + anr <= P.max + E && (P.ab == null || b >= P.ab - E);
+      const g = f.gefragt || [];
+      if (((f.vor ? vor : nach)(g[0], g[1]) ? 'ja' : 'nein') !== f.antwort) m.push(`Berufsschule Nr. ${f.nr}: Antwort „${f.antwort}“ passt nicht zu den Regeln`);
+      if (f.antwort === 'nein') {
+        if (f.sonst && !nach(f.sonst[0], f.sonst[1])) m.push(`Berufsschule Nr. ${f.nr}: Arbeit bei „Nein“ ist selbst nicht erlaubt`);
+        if (!f.sonst && f.ustd <= 5) m.push(`Berufsschule Nr. ${f.nr}: bei „Nein“ fehlt die erlaubte Arbeit (sonst)`);
+      }
+    });
     return m;
   }
   const DATEN_HINWEISE = datenPruefen();
@@ -246,6 +312,7 @@
   function tagMomente(t) {
     let m = t.morgen ? 1 : 0;
     t.leute.forEach(a => {
+      if (a.frei) return;   // Berufsschultag ohne Arbeit: nur die Frage zählt
       const f = a.frage, plan = f && f.antwort === 'ja' && f.neu ? f.neu : a.plan;
       m += momente(plan, a.person) + (f ? 1 : 0);
     });
@@ -477,23 +544,37 @@
 
   // ---------- Zustand ----------
   // DAUER in Sekunden: stempeln = Karte in den Schlitz und zurück, rueck = Rückmeldung (Stempel, Punkte, Uhr springt),
-  // frageRueck = Rückmeldung auf eine Antwort (Zeit steht)
+  // frageRueck = Rückmeldung auf eine Antwort (Zeit steht). Rückmeldungen mit Begründung warten auf „Weiter“ (die Uhr steht),
+  // nur Pünktlich/OK laufen nach rueck.* durch (Supervisor, 22.10.2026); weiterAb = „Weiter“ erst ab dann aktiv, zettelAus = Ausblenden
   const DAUER = { titel: 2.5, titelAus: 0.4, tagStart: 1.3, stempeln: 0.58, klack: 0.26, rueck: { beginn: 0.35, pause: 1.5, feierabend: 1.6 },
-    rueck3: { beginn: 0.3, pause: 1.2, feierabend: 1.3 }, frageRueck: 2.2, tagEnde: 0.55, spinVon: 0.15, spinBis: 0.95 };
+    rueck3: { beginn: 0.3, pause: 1.2, feierabend: 1.3 }, frageRueck: 2.2, tagEnde: 0.55, spinVon: 0.15, spinBis: 0.95, weiterAb: 0.6, zettelAus: 0.25 };
   let woche, tagNr, tag, phase, phaseT, summeAnteil, abzuege, verstoesse, anzahl, korrekt, unnoetig, letzter, aktiv, uhr, uhrAnz, uhrAnim,
     gewicht, wackeln, rot, druck, frage, sprungEnde, sprungEndeArt = '', M = 1;
+  // Rückmeldungs-Zettel (Frage bzw. Ergebnis eines Stempels) in fester Fläche neben/über der Karte; weiterBei = phaseT beim Tippen auf „Weiter“
+  let zettel = null, weiterBei = null;
+  function zettelNeu(z) { zettel = z; weiterBei = null; }
+  function zettelZu() {
+    if (!zettel) return true;
+    return zettel.weiter ? weiterBei != null && phaseT >= weiterBei + (RUHIG ? 0 : DAUER.zettelAus) : phaseT > zettel.dauer;
+  }
+  function weiter() {
+    if (!zettel || !zettel.weiter || zettel.offen || weiterBei != null) return false;
+    if ((phase !== 'rueck' && phase !== 'frageRueck') || phaseT < DAUER.weiterAb) return false;
+    weiterBei = phaseT; druck.weiter = 0.24; R_.ton('klick');
+    return true;
+  }
   const einzeln = () => LV.art === 'einzeln';
 
   function neu() {
     const h = location.hash;
-    const pl = /plan=([\d.,]+)/.exec(h), tg = /tag=(\d)/.exec(h), fr = /frage=(\d+)/.exec(h), so = /sonntag=(\d+)/.exec(h);
+    const pl = /plan=([\d.,]+)/.exec(h), tg = /tag=(\d)/.exec(h), fr = /frage=(\d+)/.exec(h), so = /sonntag=(\d+)/.exec(h), sch = /schule=(\d+)/.exec(h);
     if (LV.nr === 1) woche = woche1(pl ? pl[1].split(',').map(Number).filter(v => v > 0) : null);
-    else if (LV.nr === 2) woche = woche2(fr ? +fr[1] : 0);
-    else woche = woche3(fr ? +fr[1] : 0, so ? +so[1] : 0);
+    else if (LV.nr === 2) woche = woche2(fr ? +fr[1] : 0, sch ? +sch[1] : 0);
+    else woche = woche3(fr ? +fr[1] : 0, so ? +so[1] : 0, sch ? +sch[1] : 0);
     M = Math.max(1, woche.reduce((s, t) => s + tagMomente(t), 0));
-    tagNr = so && LV.nr === 3 ? 5 : fr && LV.nr === 3 ? 1 : tg ? Math.max(0, Math.min(woche.length - 1, +tg[1] - 1)) : 0;
+    tagNr = so && LV.nr === 3 ? 5 : (fr || sch) && LV.nr === 3 ? 1 : tg ? Math.max(0, Math.min(woche.length - 1, +tg[1] - 1)) : 0;
     sprungEnde = /ende=([a-z]+)(?:-(\d+))?/.exec(h) || null;
-    summeAnteil = 0; abzuege = 0; verstoesse = 0; anzahl = 0; korrekt = 0; unnoetig = 0; letzter = null; aktiv = null; frage = null;
+    summeAnteil = 0; abzuege = 0; verstoesse = 0; anzahl = 0; korrekt = 0; unnoetig = 0; letzter = null; aktiv = null; frage = null; zettel = null; weiterBei = null;
     tag = null; uhr = 6; uhrAnz = 6; uhrAnim = null; gewicht = tageszeit(7); wackeln = 0; rot = 0; druck = {};
     phase = 'titel'; phaseT = 0; Lschluessel = '';
     anzeigen();
@@ -515,9 +596,12 @@
     const d = woche[tagNr];
     tag = { nr: tagNr, name: d.name, sonntag: !!d.sonntag, morgen: d.morgen,
       leute: d.leute.map((x, i) => ({ i, person: x.person, P: pers(x.person), beginn: x.beginn, plan: x.plan, arbeit: 0, pausenzeit: 0, pauseRest: 0,
-        pausen: 0, stempel: [], begonnen: false, fertig: false, frage: x.frage || null, gefragt: false })) };
+        pausen: 0, stempel: [], begonnen: false, fertig: false, frage: x.frage || null, gefragt: false,
+        schule: x.schule || 0, schulDef: x.schulDef || null, frei: !!x.frei })) };
     // Uhr läuft vorwärts bis zum Arbeitsbeginn (über Nacht), Hintergrund folgt; Sonntag: Vormittag
-    const ziel = tag.sonntag ? 10 : Math.min(...tag.leute.map(a => a.beginn)) - (tag.morgen ? 0.5 : 0);
+    // Frage vor dem Unterricht (z. B. „vorher die Post holen?“) zur Uhrzeit der Frage, nicht zum späteren Arbeitsbeginn
+    const frueh = Math.min(...tag.leute.map(a => a.beginn)) - (tag.morgen ? 0.5 : 0);
+    const ziel = tag.sonntag ? 10 : tag.morgen && tag.morgen.uhr != null ? Math.min(tag.morgen.uhr, frueh) : frueh;
     let bis = ziel; while (bis < uhrAnz) bis += 24;
     uhrAnim = { von: uhrAnz, bis, t: 0, dauer: DAUER.tagStart * 0.8 };
     uhr = ziel;
@@ -533,8 +617,21 @@
   }
   function tagLos() {
     if (tag.sonntag) { phase = 'tagEnde'; phaseT = 0; return; }
-    if (einzeln()) { tag.leute[0].begonnen = true; uhrAnz = tag.leute[0].beginn; stempeln(tag.leute[0], 'beginn'); }
-    else { phase = 'lauf'; phaseT = 0; }
+    // Berufsschultag ohne Arbeit: Karte bleibt ausgegraut („frei“); arbeitet niemand, endet der Tag nach der Frage
+    tag.leute.forEach(a => { if (a.frei) { a.begonnen = true; a.fertig = true; } });
+    Lschluessel = '';   // Regelzeile der Karte ändert sich nach der Berufsschul-Frage
+    if (tag.leute.every(a => a.fertig)) { phase = 'tagEnde'; phaseT = 0; return; }
+    if (einzeln()) {
+      const a = tag.leute[0];
+      if (Math.abs(uhrAnz - a.beginn) > 0.05) uhrAnim = { von: uhrAnz, bis: a.beginn, t: 0, dauer: 0.7 };   // Uhr springt zum Arbeitsbeginn
+      a.begonnen = true; uhrAnz = a.beginn; stempeln(a, 'beginn');
+    }
+    else {
+      // Level 3: lag die Frage früher (vor dem Unterricht), springt die Uhr bis kurz vor den ersten Arbeitsbeginn
+      const start = Math.min(...tag.leute.filter(a => !a.frei).map(a => a.beginn)) - 0.5;
+      if (uhr < start) { uhrAnim = { von: uhrAnz, bis: start, t: 0, dauer: 0.7 }; uhr = start; }
+      phase = 'lauf'; phaseT = 0;
+    }
   }
 
   // Stempel setzen: art 'beginn' | 'pause' | 'feierabend'; erzwungen = Grenze überschritten (Verstoß, Moment nachgeholt)
@@ -543,8 +640,8 @@
     const jetzt = echteUhr();
     let w = null;
     if (art !== 'beginn') {
-      w = wertung(art, a.arbeit, a.plan, a.pausen, a.person, jetzt);
-      if (erzwungen && (!w || w.ergebnis !== 'verstoss')) w = { ergebnis: 'verstoss', anteil: 0, grund: w && w.grund };
+      w = wertung(art, a.arbeit, a.plan, a.pausen, a.person, jetzt, a.schule);
+      if (erzwungen && (!w || w.ergebnis !== 'verstoss')) w = { ergebnis: 'verstoss', anteil: 0, grund: w && w.grund || 'Grenze überschritten', detail: w && w.detail };
       if (!w) return false;
       if (art === 'pause') {
         const geplant = a.plan > a.P.pausen[a.pausen][0];
@@ -555,13 +652,14 @@
         // geplante Pausen, die durch frühen Feierabend nicht mehr nötig sind, zählen wie der Feierabend
         for (let n = a.pausen; n < a.P.pausen.length; n++) if (a.plan > a.P.pausen[n][0]) summeAnteil += w.anteil;
         // offene Rückfrage dieser Person endet ohne Antwort
-        if (frage && frage.a === a && !frage.antwort) { anzahl++; frage = null; }
+        if (frage && frage.a === a && !frage.antwort) { anzahl++; frage = null; zettel = null; }
       }
       anzahl++;
       if (w.ergebnis === 'verstoss') { verstoesse++; rot = 0.6; wackeln = 0.4; R_.vibrieren([80, 60, 80]); }
       else if (w.ergebnis !== 'unnoetig') korrekt++;
     }
-    const s = { art, uhr: jetzt, arbeit: a.arbeit, ergebnis: w ? w.ergebnis : null, anteil: w ? w.anteil : null, grund: w && w.grund || '', delta: 0, erzwungen: !!erzwungen };
+    const s = { art, uhr: jetzt, arbeit: a.arbeit, ergebnis: w ? w.ergebnis : null, anteil: w ? w.anteil : null, grund: w && w.grund || '', detail: w && w.detail || '',
+      delta: 0, erzwungen: !!erzwungen };
     s.delta = punkteRoh() - vorher;
     a.stempel.push(s);
     letzter = s; aktiv = a;
@@ -593,8 +691,15 @@
     frage = { def, a, t: 0, antwort: null, ergebnis: null, delta: 0, morgen: !a };
     // Uhr steht, solange eine Frage offen ist – auch die Chef-Frage in Level 2 (Player-Test, MZ 22.10.2026): Lesen kostet keine Spielzeit
     phase = 'frage'; phaseT = 0;
+    zettelNeu({ art: 'frage', kopf: a ? 'Chef:' : 'Frage:', text: def.text, offen: true });
     R_.ton('klick');
     Lschluessel = '';
+  }
+  // Rückmeldungs-Zettel zu einem Stempel: Kopf „Montag – Pause 14:11 Uhr“ (Level 2/3: Name der Person), Stempel, Punkte, Begründung
+  function zettelStempel(s, a) {
+    const wer = LV.personen ? a.P.name : tag.name;
+    zettelNeu({ art: 'stempel', kopf: wer + NBSP + '– ' + (s.art === 'pause' ? 'Pause' : 'Feierabend') + ' ' + uhrText(s.uhr) + NBSP + 'Uhr',
+      stempel: s.ergebnis, delta: s.delta, grund: s.grund, detail: s.detail, weiter: !!s.grund, dauer: (einzeln() ? DAUER.rueck : DAUER.rueck3)[s.art] });
   }
   function antworte(antw) {
     if (!frage || frage.ergebnis) return false;
@@ -609,6 +714,9 @@
     } else if (w.ergebnis === 'verstoss') { verstoesse++; rot = 0.6; wackeln = 0.4; R_.vibrieren([80, 60, 80]); klang('verstoss'); }
     else R_.ton('fehler');
     frage.antwort = antw || '–'; frage.ergebnis = w.ergebnis; frage.delta = punkteRoh() - vorher;
+    // Begründung: bei falscher oder fehlender Antwort beginnt sie mit der richtigen; mit Begründung wartet der Zettel auf „Weiter“
+    const grund = frage.def.grund ? (w.ergebnis === 'richtig' ? '' : 'Richtig: „' + (frage.def.antwort === 'ja' ? 'Ja' : 'Nein') + '“' + NBSP + '– ') + frage.def.grund : '';
+    if (zettel && zettel.art === 'frage') { Object.assign(zettel, { offen: false, stempel: w.ergebnis, delta: frage.delta, grund, weiter: !!grund, dauer: DAUER.frageRueck, masse: null }); weiterBei = null; }
     phase = 'frageRueck'; phaseT = 0;
     anzeigen();
     return true;
@@ -638,9 +746,9 @@
       frage.t += dt;
       if (frage.t > FRAGE_ZEIT) antworte(null);
     } else if (phase === 'frageRueck') {
-      if (phaseT > DAUER.frageRueck) {
+      if (zettelZu()) {
         const morgen = frage.morgen;
-        frage = null;
+        frage = null; zettel = null;
         if (verstoesse >= MAX_VERSTOESSE) return abbruch();
         if (morgen) tagLos(); else { phase = 'lauf'; phaseT = 0; }
       }
@@ -649,6 +757,7 @@
       if (phaseT > (RUHIG ? 0.2 : DAUER.stempeln)) {
         phase = 'rueck'; phaseT = 0;
         const e = letzter.ergebnis;
+        if (e) zettelStempel(letzter, aktiv);
         if (e === 'verstoss') klang('verstoss');
         else if (letzter.art === 'feierabend') klang('feierabend');
         if (letzter.art === 'pause') {
@@ -657,7 +766,9 @@
         }
       }
     } else if (phase === 'rueck') {
-      if (phaseT > rueck[letzter.art] + (letzter.grund ? 0.9 : 0)) {
+      // mit Begründung: wartet auf „Weiter“ (Uhr und Arbeitszeit stehen, Knöpfe ausgegraut); sonst kurz durchlaufen
+      if (zettel ? zettelZu() : phaseT > rueck[letzter.art]) {
+        zettel = null;
         if (verstoesse >= MAX_VERSTOESSE) return abbruch();
         if (tag.leute.every(a => a.fertig)) { phase = 'tagEnde'; phaseT = 0; }
         else { phase = 'lauf'; phaseT = 0; uhrAnz = echteUhr(); }
@@ -681,7 +792,8 @@
   function grenzen(a, jetzt) {
     const T = TOLERANZ;
     if (a.pauseRest <= 0 && a.pausen < a.P.pausen.length && a.arbeit > a.P.pausen[a.pausen][0] + T) { a.arbeit = a.P.pausen[a.pausen][0] + T + 1 / 60; return stempeln(a, 'pause', true); }
-    if (a.arbeit > a.P.max + T) { a.arbeit = a.P.max + T + 1 / 60; return stempeln(a, 'feierabend', true); }
+    const max = a.P.max - a.schule;   // Berufsschule zählt auf die Höchstzeit
+    if (a.arbeit > max + T) { a.arbeit = max + T + 1 / 60; return stempeln(a, 'feierabend', true); }
     if (a.P.bis != null && jetzt > a.P.bis + T) return stempeln(a, 'feierabend', true);
     return false;
   }
@@ -694,7 +806,8 @@
       const G = a.P.pausen[a.pausen][0];
       if ((a.plan > G || a.arbeit > a.plan) && drin(G - a.arbeit, TOLERANZ)) return true;
     }
-    if (drin(a.P.max - a.arbeit, TOLERANZ) || drin(Math.min(a.plan, a.P.max) - a.arbeit, VOLL)) return true;
+    const max = a.P.max - a.schule;
+    if (drin(max - a.arbeit, TOLERANZ) || drin(Math.min(a.plan, max) - a.arbeit, VOLL)) return true;
     return a.P.bis != null && drin(a.P.bis - jetzt, TOLERANZ);
   }
   function lauf(dt) {
@@ -784,7 +897,7 @@
     // „Weiter zu Level N“ nach jedem geschafften Level, sobald N frei und gebaut ist; „freigeschaltet“ nur beim ersten Mal
     const weiter = naechstes && naechstes.gebaut && naechstes.nr <= frei(), zeigen = neuFrei && weiter;
     R_.ende(p, {
-      dach: dach(), ueberschrift: stufe(p), zeile: bilanz(true),
+      dach: dach(), ueberschrift: stufe(p, verstoesse), zeile: bilanz(true),
       hinweis: zeigen ? 'Level ' + naechstes.nr + ' freigeschaltet' : '',
       extraKnopf: weiter ? { text: 'Weiter zu Level ' + naechstes.nr, klick: () => levelWaehlen(naechstes.nr) } : null,
       text: K.spruch || '', bild: endBild('abend'), bildPosition: SCHIRM_POS, verzoegerung: 500,
@@ -814,7 +927,7 @@
       // wie im echten Spiel: „Weiter“, wenn das nächste Level gebaut und schon frei ist (#ende=frei: zusätzlich „freigeschaltet“)
       const p = wert ? +wert : 854, nx = LV.nr + 1, gebaut = nx <= LEVEL.length && LEVEL[nx - 1].gebaut;
       const f = art === 'frei' && gebaut, knopf = gebaut && (f || nx <= frei());
-      R_.ende(p, { dach: dach(), ueberschrift: stufe(p), zeile: bilanz(true, { anzahl: 15, korrekt: 14, verstoesse: 1, unnoetig: 0 }), text: K.spruch || '', bild: endBild('abend'), bildPosition: SCHIRM_POS, verzoegerung: 0,
+      R_.ende(p, { dach: dach(), ueberschrift: stufe(p, 1), zeile: bilanz(true, { anzahl: 15, korrekt: 14, verstoesse: 1, unnoetig: 0 }), text: K.spruch || '', bild: endBild('abend'), bildPosition: SCHIRM_POS, verzoegerung: 0,
         hinweis: f ? 'Level ' + nx + ' freigeschaltet' : '', extraKnopf: knopf ? { text: 'Weiter zu Level ' + nx, klick: () => levelWaehlen(nx) } : null });
     }
   }
@@ -825,19 +938,20 @@
   // Knöpfe rechts neben der Karte. Level 2/3: Foto der Person ragt oben rechts über die Karte (Platz dafür reserviert).
   // Level 3 (zwei Karten): Hochformat Uhr oben links, zwei Karten nebeneinander, unter jeder Karte ihre zwei Knöpfe
   // übereinander; Querformat Uhr links, Karten rechts daneben, je Karte zwei Knöpfe nebeneinander darunter.
-  // Notiz (Frage): Hochformat oben über dem Haus, Querformat rechts neben der Gruppe (zu schmal: über der Uhr).
+  // Zettel (Frage, Rückmeldung): siehe rm unten – nie über den Karten.
   let L = null, Lschluessel = '';
   const begrenzen = (v, a, b) => Math.max(a, Math.min(b, v));
   const UHR_SEITE = GEH.b / GEH.h, KARTE_F = 0.62;   // Kartenbreite = 0,62 × Uhrhöhe
   const FOTO = { b: 0.46, seite: 1.25, raus: 0.65 };  // Foto: Breite 46 % der Karte, Höhe 1,25 × Breite, 65 % ragen über die Karte
   function aufteilen(B, H) {
     const quer = B > H * 1.05, breit = B >= 560, lebenY = breit ? 24 : 60, oben = breit ? 54 : 76, gap = 12;
+    KLEIN = quer ? KLEIN_QUER : KLEIN_HOCH;
     const foto = LV.personen, fotoRaus = foto ? FOTO.b * FOTO.seite * FOTO.raus * KARTE_F : 0;   // Anteil der Uhrhöhe
     const knoepfe = [], karten = [];
     // längste Regel des Tages bestimmt die Schriftgröße (beide Karten in Level 3 gleich)
-    const regeln = tag ? tag.leute.map(a => a.P.regel || '') : [];
+    const regeln = tag ? tag.leute.map(a => regelLaengste(a, false)) : [];
     const regelLang = LV.personen ? regeln.reduce((a, b) => (b.length > a.length ? b : a), '') || PERSONEN.lena.regel : '';
-    let C, notiz, fb = FOTO.b, zeilenAnz = 4;
+    let C, fb = FOTO.b, zeilenAnz = 4;
     if (LV.art === 'abteilung') {
       if (!quer) {
         // Level 3 hoch (MZ, 22.10.2026): Stempeluhr klein oben mittig, darunter zwei gleich große Karten nebeneinander mit
@@ -855,25 +969,25 @@
           karten.push({ x, y: cy, w: cw, h: ch });
           knoepfe.push({ id: 'pause' + i, art: 'pause', i, x, y: y1, w: cw, h: kh }, { id: 'feierabend' + i, art: 'feierabend', i, x, y: y2, w: cw, h: kh });
         }
-        notiz = { x: (B - Math.min(B - 24, 400)) / 2, y: oben + 8, w: Math.min(B - 24, 400), hMax: cy - 16 - (oben + 8) };
       } else {
         const m = begrenzen(B * 0.04, 12, 48), kh = begrenzen(H * 0.11, 38, 54), ky = H - kh - begrenzen(H * 0.03, 8, 20);
         let gh = (ky - 10 - oben - 2) / (1 + FOTO.b * FOTO.seite * FOTO.raus * 0.7);
         gh = Math.min(gh, 440, (B - 2 * m - 2 * gap) / (UHR_SEITE + 1.4));
-        const cw = 0.7 * gh, cy = ky - 10 - gh;
+        // Karten breiter, wenn rechts daneben noch Platz für den Rückmeldungs-Zettel (ca. 240 px) bleibt – größere Schrift
+        // (MZ, 22.10.2026: Querformat lesbarer); das Foto behält seine Größe
+        const frei = B - 2 * m - gh * UHR_SEITE - 2 * gap, mitZettel = (frei - 242) / 2;
+        const cw = mitZettel >= 0.7 * gh ? Math.min(mitZettel, gh) : 0.7 * gh, cy = ky - 10 - gh;
+        fb = FOTO.b * 0.7 * gh / cw;
         C = { x: m, y: cy, w: gh * UHR_SEITE, h: gh };
         for (let i = 0; i < 2; i++) {
           const x = C.x + C.w + gap + i * (cw + gap), bw = (cw - 6) / 2;
           karten.push({ x, y: cy, w: cw, h: gh });
           knoepfe.push({ id: 'pause' + i, art: 'pause', i, x, y: ky, w: bw, h: kh }, { id: 'feierabend' + i, art: 'feierabend', i, x: x + bw + 6, y: ky, w: bw, h: kh });
         }
-        const rechts = karten[1].x + cw + 16;
-        notiz = B - rechts - 12 >= 230 ? { x: rechts, y: oben + 8, w: Math.min(B - rechts - 12, 380), hMax: H - oben - 24, mitte: true }
-          : { x: m, y: oben + 8, w: Math.min(360, B - 2 * m), hMax: H - oben - 24, mitte: true };
       }
     } else {
       const unten = !quer || H >= 400;
-      let gh, cx0, cy0;
+      let gh, cx0, cy0, kf = KARTE_F;
       if (unten) {
         const kh = begrenzen(H * 0.085, 46, 66), ky = H - kh - begrenzen(H * 0.03, 12, 24);
         const W = quer ? Math.min(B * 0.55, 640) : Math.min(B - 24, 640);
@@ -886,30 +1000,43 @@
       } else {
         const m = begrenzen(B * 0.04, 12, 48), bw = begrenzen(B * 0.2, 124, 220);
         gh = Math.min((H - oben - 14) / (1 + fotoRaus), 460, (B - 2 * m - gap - 18 - bw) / (UHR_SEITE + KARTE_F));
+        // flaches Querformat mit Personen (Level 2): Karte so breit wie möglich (bis 0,9 × Uhrhöhe), damit Regel und
+        // Einträge größer werden (MZ, 22.10.2026); das Foto behält seine Größe
+        if (LV.personen) { kf = begrenzen((B - 2 * m - gap - 18 - bw - gh * UHR_SEITE) / gh, KARTE_F, 0.9); fb = FOTO.b * KARTE_F / kf; }
         cx0 = m; cy0 = H - 10 - gh;
-        const kh = begrenzen(gh * 0.2, 44, 64), kx = cx0 + gh * (UHR_SEITE + KARTE_F) + gap + 18, mitte = cy0 + gh * 0.55;
+        const kh = begrenzen(gh * 0.2, 44, 64), kx = cx0 + gh * (UHR_SEITE + kf) + gap + 18, mitte = cy0 + gh * 0.55;
         knoepfe.push({ id: 'pause0', art: 'pause', i: 0, x: kx, y: mitte - kh - 7, w: bw, h: kh }, { id: 'feierabend0', art: 'feierabend', i: 0, x: kx, y: mitte + 7, w: bw, h: kh });
       }
       C = { x: cx0, y: cy0, w: gh * UHR_SEITE, h: gh };
-      karten.push({ x: C.x + C.w + gap, y: C.y + gh * 0.035, w: gh * KARTE_F, h: gh * 0.93 });
-      const R = karten[0], fotoOben = R.y - FOTO.b * FOTO.seite * FOTO.raus * R.w;
-      if (!quer) notiz = { x: (B - Math.min(B - 24, 400)) / 2, y: oben + 8, w: Math.min(B - 24, 400), hMax: (foto ? fotoOben : C.y) - 12 - (oben + 8) };
-      else {
-        const rechts = Math.max(R.x + R.w, knoepfe[1].x + knoepfe[1].w) + 16;
-        // zu schmal: Notiz über Uhr und Karte, links von den Knöpfen (die bleiben frei)
-        notiz = B - rechts - 12 >= 230 ? { x: rechts, y: oben + 8, w: Math.min(B - rechts - 12, 380), hMax: H - oben - 24, mitte: true }
-          : { x: C.x, y: oben + 8, w: Math.min(340, B - 2 * C.x, knoepfe[0].x - C.x - 10), hMax: H - oben - 24, mitte: true };
-      }
+      karten.push({ x: C.x + C.w + gap, y: C.y + gh * 0.035, w: gh * kf, h: gh * 0.93 });
     }
     // Karteninhalt (Schriftgröße) und Karten mittig neben der Uhr; beide Karten in Level 3 gleich groß
     let inhalt = karten.map(R => karteMasse(R, regelLang, zeilenAnz)), regelKurz = false;
+    // Level 3 quer: wird die Schrift mit vier Stempelzeilen zu klein, nur die letzten drei zeigen (MZ, 22.10.2026)
+    if (quer && LV.art === 'abteilung' && inhalt[0].fs < 12.5) { zeilenAnz = 3; inhalt = karten.map(R => karteMasse(R, regelLang, zeilenAnz)); }
     // sehr kleine Karten (z. B. Level 3 bei 568 × 320): nur die Kurzregel, damit der Rest lesbar bleibt (QA, 22.10.2026)
     if (LV.personen && inhalt[0].fs < 9.5) {
       regelKurz = true;
-      const kurz = (tag ? tag.leute.map(a => a.P.regelKurz || '') : [PERSONEN.lena.regelKurz || '']).reduce((a, b) => (b.length > a.length ? b : a), '');
+      const kurz = (tag ? tag.leute.map(a => regelLaengste(a, true)) : [PERSONEN.lena.regelKurz || '']).reduce((a, b) => (b.length > a.length ? b : a), '');
       inhalt = karten.map(R => karteMasse(R, kurz, zeilenAnz));
     }
     karten.forEach((R, i) => { if (LV.art !== 'abteilung') R.y = C.y + Math.max(0, (C.h - inhalt[i].h) / 2); else R.h = inhalt[i].h; });
+    // Rückmeldungs-Zettel (Frage, Stempel-Ergebnis mit Begründung): feste Fläche, die Karten bleiben frei (Spielertest 22.10.2026).
+    // Hochformat: unten bündig direkt über Uhr/Karte bzw. über den Fotos (darunter liegen die Knöpfe); Level 3 darf über die
+    // kleine Uhr und die Fotos reichen, nie über die Karten. Querformat: rechts neben Karten und Knöpfen; ist dort kein Platz,
+    // links über der Uhr (sie steht, solange der Zettel offen ist). Level 3: eine gemeinsame Fläche für beide Karten.
+    const fotoHoch = R => foto ? fb * FOTO.seite * FOTO.raus * R.w : 0;
+    const kartenOben = Math.min(...karten.map(R => R.y)), fotoOben = Math.min(...karten.map(R => R.y - fotoHoch(R)));
+    let rm;
+    if (!quer) {
+      const w = Math.min(B - 24, 400), unten = (LV.art === 'abteilung' ? fotoOben : Math.min(C.y, fotoOben)) - 10;
+      rm = { x: (B - w) / 2, w, top: oben + 8, unten, untenMax: LV.art === 'abteilung' ? kartenOben - 6 : unten, mitte: null };
+    } else {
+      const rechts = Math.max(...karten.map(R => R.x + R.w), ...knoepfe.map(k => k.x + k.w)) + 16;
+      const wr = Math.min(380, B - rechts - 12), wl = Math.min(380, karten[0].x - 16), mitte = C.y + C.h / 2;
+      rm = wr >= 220 || wr >= wl ? { x: rechts, w: wr, top: oben + 8, untenMax: H - 12, mitte }
+        : { x: 8, w: wl, top: oben + 8, untenMax: H - 12, mitte };
+    }
     // Haus: Bild füllt den Schirm; Hochformat: Logo auf dem Schild endet über der Uhr, Querformat: Logo rechts der Gruppe
     let s = Math.max(B / HB, H / HB), ox, oy;
     const oberkante = Math.min(C.y, ...karten.map(R => R.y - (foto ? fb * FOTO.seite * FOTO.raus * R.w : 0)));
@@ -930,8 +1057,11 @@
     }
     const k = C.w / GEH.b;
     const schlitz = { x: C.x + (GEH.schlitzX0 + GEH.schlitzX1) / 2 * k, y: C.y + GEH.schlitzY * k, w: (GEH.schlitzX1 - GEH.schlitzX0) * k };
-    return { quer, lebenY, oben, C, karten, inhalt, knoepfe, notiz, fotoB: fb, zeilenAnz, regelKurz, haus: { s, ox, oy }, schlitz, rechts: Math.max(...karten.map(R => R.x + R.w), ...knoepfe.map(k => k.x + k.w)) };
+    return { quer, lebenY, oben, C, karten, inhalt, knoepfe, rm, fotoB: fb, zeilenAnz, regelKurz, haus: { s, ox, oy }, schlitz, rechts: Math.max(...karten.map(R => R.x + R.w), ...knoepfe.map(k => k.x + k.w)) };
   }
+  // kleine Texte der Karte (Regel, Zeilenbeschriftung) relativ zur Grundschrift; im Querformat größer (MZ, 22.10.2026)
+  const KLEIN_HOCH = { regel: 0.76, regelZ: 0.92, zeile: 0.72 }, KLEIN_QUER = { regel: 0.86, regelZ: 1.02, zeile: 0.82 };
+  let KLEIN = KLEIN_HOCH;
   // Inhalt der Karte: Schriftgröße so, dass Kopf, „Heute geplant“, Regel der Person, Arbeitszeit und vier Zeilen hineinpassen
   const messG = document.createElement('canvas').getContext('2d');
   function karteMasse(R, regel, n) {
@@ -942,9 +1072,9 @@
       const pad = Math.max(5, fs * 0.6), kopf = Math.max(18, fs * 1.85);
       g.font = `600 ${fs * 0.92}px ${SCHRIFT}`;
       const plan1 = g.measureText('Heute geplant: 10:00' + NBSP + 'Std.').width <= R.w - 2 * pad;
-      g.font = `600 ${fs * 0.76}px ${SCHRIFT}`;
+      g.font = `600 ${fs * KLEIN.regel}px ${SCHRIFT}`;
       const regelZeilen = regel ? umbrechen(g, regel, R.w - 2 * pad) : [];
-      const info = pad * 0.8 + (plan1 ? 1 : 2) * fs * 1.15 + regelZeilen.length * fs * 0.92 + (regel ? fs * 0.25 : 0) + fs * 0.55 + fs * 1.05 + fs * 1.85 + pad * 0.6;
+      const info = pad * 0.8 + (plan1 ? 1 : 2) * fs * 1.15 + regelZeilen.length * fs * KLEIN.regelZ + (regel ? fs * 0.25 : 0) + fs * 0.55 + fs * 1.05 + fs * 1.85 + pad * 0.6;
       const unten = fs * 0.8, rest = R.h - kopf - info - unten, zeile = Math.min(fs * 2.7, rest / n);
       m = { fs, pad, kopf, plan1, info, unten, zeile, regelZeilen, zeilenAnz: n };
       if (zeile >= fs * 1.95 || fs <= 7.5) break;
@@ -964,25 +1094,63 @@
     if (zeile) zeilen.push(zeile);
     return zeilen;
   }
-  // Notiz mit Frage: Maße abhängig vom Text; Knöpfe „Ja“/„Nein“ unten auf der Notiz
-  function notizMasse() {
-    if (!frage || !L) return null;
-    if (frage.masse && frage.masseL === L) return frage.masse;
-    const N = L.notiz, g = messG, pad = 14;
-    let fs = begrenzen(N.w * 0.05, 13, 18), zeilen, h, kh;
+  // Zettel: Maße abhängig vom Inhalt (Kopf, Frage, Ja/Nein, Stempel mit Punkten, Begründung, Einzelheit, „Weiter“).
+  // Schrift so groß wie möglich; die Begründung nie unter 13 px, notfalls entfällt die Einzelheit.
+  function zettelMasse() {
+    if (!zettel || !L) return null;
+    const z = zettel;
+    if (z.masse && z.masseL === L) return z.masse;
+    const r = L.rm, g = messG, w = r.w, pad = w < 260 ? 11 : 14, innen = w - 2 * pad, hMax = r.untenMax - r.top;
+    // kompakt (sehr wenig Platz, z. B. Level 3 bei 320 × 640): „Weiter“ neben dem Stempel, Punkte in der Kopfzeile
+    let fs = begrenzen(w * 0.05, 13, 18), m, ohneDetail = false, kompakt = false;
     for (;;) {
+      const fg = Math.max(13, fs), fd = Math.max(12.5, fs * 0.9), kh = begrenzen(fs * 2.6, 36, 48);
       g.font = `600 ${fs}px ${SCHRIFT}`;
-      zeilen = umbrechen(g, frage.def.text, N.w - 2 * pad);
-      kh = begrenzen(fs * 2.6, 36, 48);
-      h = pad + fs * 1.3 + 6 + zeilen.length * fs * 1.3 + 12 + kh + pad + 6;
-      if (h <= N.hMax || fs <= 11) break;
-      fs -= 0.5;
+      const frageZ = z.text ? umbrechen(g, z.text, innen) : [];
+      g.font = `700 ${fg}px ${SCHRIFT}`;
+      const grundZ = z.grund ? umbrechen(g, z.grund, innen - 11) : [];
+      g.font = `600 ${fd}px ${SCHRIFT}`;
+      const detailZ = z.detail && !ohneDetail ? umbrechen(g, z.detail, innen - 11) : [];
+      const sh = z.stempel ? begrenzen(fs * 2.5, 34, 46) : 0, o = {}, kf = Math.max(11, fs * 0.85);
+      const reihe = kompakt ? Math.max(sh, kh) : sh, pf = begrenzen(w * 0.042, 12, 16), pw = z.stempel ? pillenBreite(g, z.delta, pf) : 0;
+      // Punkte: neben dem Stempel (kompakt: in der Kopfzeile); passt das nicht, in eigener Zeile unter dem Stempel
+      g.font = `800 ${kf}px ${SCHRIFT}`;
+      let pilleKopf = false, pilleZeile = false;
+      if (pw && kompakt) { pilleKopf = g.measureText(z.kopf).width + 8 + pw <= innen; pilleZeile = !pilleKopf; }
+      else if (pw) {
+        g.font = `900 ${sh / 1.65}px ${SCHRIFT}`;
+        const sw = Math.min(g.measureText(STEMPEL[z.stempel]).width + sh / 1.65 * 0.9, innen * 0.6);
+        pilleZeile = sw + 18 + pw > innen;
+        g.font = `800 ${kf}px ${SCHRIFT}`;
+      }
+      const kopfZ = umbrechen(g, z.kopf, innen - (pilleKopf ? pw + 8 : 0));
+      let y = pad;
+      o.kopf = y + kf; y += kf * 0.25 + kopfZ.length * kf * 1.25;
+      if (frageZ.length) { o.frage = y + 4; y += 4 + frageZ.length * fs * 1.3; }
+      if (z.offen) { y += 14; o.knoepfe = y; y += kh; }
+      if (z.stempel) { y += 10; o.stempel = y + reihe / 2; if (kompakt) o.weiter = y + (reihe - kh) / 2; y += reihe; }
+      if (pilleZeile) { o.pille = y + 4 + pf * 0.95; y += 4 + pf * 1.9; }
+      if (grundZ.length) { y += 8; o.grund = y; y += grundZ.length * fg * 1.3; }
+      if (detailZ.length) { y += 3; o.detail = y; y += detailZ.length * fd * 1.3; }
+      if (z.weiter && !kompakt) { y += 12; o.weiter = y; y += kh; }
+      m = { w, h: y + pad, fs, fg, fd, kf, kh, sh, pf, pad, innen, kopfZ, frageZ, grundZ, detailZ, o, kompakt, pilleKopf };
+      if (m.h <= hMax) break;
+      if (fs > 12) { fs -= 0.5; continue; }
+      if (!kompakt && z.weiter && z.stempel) { kompakt = true; continue; }
+      if (fs > 11) { fs -= 0.5; continue; }
+      if (!ohneDetail && z.detail) { ohneDetail = true; continue; }
+      break;
     }
-    const y = N.mitte ? N.y + Math.max(0, (N.hMax - h) / 2) : N.y;
-    const kw = (N.w - 2 * pad - 12) / 2, ky = y + h - pad - 6 - kh;
-    frage.masse = { x: N.x, y, w: N.w, h, fs, pad, zeilen, ja: { x: N.x + pad, y: ky, w: kw, h: kh }, nein: { x: N.x + pad + kw + 12, y: ky, w: kw, h: kh } };
-    frage.masseL = L;
-    return frage.masse;
+    m.x = r.x;
+    m.y = r.mitte != null ? begrenzen(r.mitte - m.h / 2, r.top, Math.max(r.top, r.untenMax - m.h)) : Math.max(r.top, r.unten - m.h);
+    const kw = (innen - 12) / 2;
+    if (z.offen) {
+      m.ja = { x: m.x + pad, y: m.y + m.o.knoepfe, w: kw, h: m.kh };
+      m.nein = { x: m.x + pad + kw + 12, y: m.y + m.o.knoepfe, w: kw, h: m.kh };
+    }
+    if (z.weiter) m.weiterK = m.kompakt ? { x: m.x + pad + innen * 0.54, y: m.y + m.o.weiter, w: innen * 0.46, h: m.kh } : { x: m.x + pad, y: m.y + m.o.weiter, w: innen, h: m.kh };
+    z.masse = m; z.masseL = L;
+    return m;
   }
 
   // ---------- Eingabe ----------
@@ -990,11 +1158,12 @@
   function runter(x, y) {
     if (!L) return;
     if (phase === 'titel') { phaseT = Math.max(phaseT, DAUER.titel - DAUER.titelAus); return; }   // Tippen überspringt den Titel
-    const nm = notizMasse();
-    if (nm && !frage.ergebnis) {
-      if (drin(nm.ja, x, y, 6)) { antworte('ja'); return; }
-      if (drin(nm.nein, x, y, 6)) { antworte('nein'); return; }
+    const zm = zettelMasse();
+    if (zm && zm.ja && frage && !frage.ergebnis) {
+      if (drin(zm.ja, x, y, 6)) { antworte('ja'); return; }
+      if (drin(zm.nein, x, y, 6)) { antworte('nein'); return; }
     }
+    if (zm && zm.weiterK && drin(zm.weiterK, x, y, 8)) { weiter(); return; }
     for (const k of L.knoepfe) if (drin(k, x, y, 6)) { tippe(k.art, k.i); return; }
   }
   addEventListener('keydown', e => {
@@ -1002,6 +1171,8 @@
     const k = e.key.toLowerCase();
     if (phase === 'titel' && (k === ' ' || k === 'enter' || k === 'p' || k === 'f')) { e.preventDefault(); runter(-1, -1); return; }
     if (frage && !frage.ergebnis && (k === 'j' || k === 'n')) { antworte(k === 'j' ? 'ja' : 'nein'); return; }
+    // Rückmeldung mit Begründung: Eingabe, Leertaste oder W = „Weiter“
+    if (zettel && zettel.weiter && (k === 'enter' || k === 'w' || e.code === 'Space')) { e.preventDefault(); weiter(); return; }
     if (k === 'p' || e.code === 'Space') { e.preventDefault(); tippe('pause', 0); }
     else if (k === 'f' || k === 'enter') { e.preventDefault(); tippe('feierabend', 0); }
     else if (k === 'o') tippe('pause', 1);
@@ -1030,7 +1201,7 @@
     zeichneUhr(g);
     zeichneKartenSzene(g);
     zeichneKnoepfe(g);
-    zeichneNotiz(g);
+    zeichneZettel(g);
     zeichneLeben(g, B);
     if (rot > 0 && !RUHIG) {   // Verstoß: Rand kurz rot
       const a = rot / 0.6 * 0.35, r = g.createRadialGradient(B / 2, H / 2, Math.min(B, H) * 0.35, B / 2, H / 2, Math.max(B, H) * 0.75);
@@ -1120,9 +1291,16 @@
       const lage = karteLage(a);
       if (!lage) return;
       zeichneKarte(g, lage, a, L.inhalt[a.i]);
+      // Level 3: zu welcher Karte die Rückmeldung gehört – Rahmen in der Stempelfarbe, solange der Zettel offen ist
+      if (a === aktiv && zettel && zettel.art === 'stempel' && LV.art === 'abteilung') {
+        g.save();
+        g.globalAlpha = 0.9 * zettelSicht();
+        runderKasten(g, lage.x - 3, lage.y - 3, lage.w + 6, L.inhalt[a.i].h * lage.f + 6, 6);
+        g.lineWidth = 3; g.strokeStyle = stempelFarbe(zettel.stempel); g.stroke();
+        g.restore();
+      }
       if (LV.personen && !lage.schnitt) zeichneFoto(g, lage, a);
     });
-    if (letzter && letzter.ergebnis && phase === 'rueck' && aktiv) zeichneGrossStempel(g);
   }
 
   // Foto der Person: Polaroid mit Name und Hinweis, oben rechts über die Karte geklemmt
@@ -1151,6 +1329,24 @@
     g.fillText(p.hinweis, 0, ty + bh * 0.185, bw - 2 * r);
     g.restore();
   }
+
+  // Berufsschul-Zusatz auf der Karte (MZ, 23.10.2026): vor der Antwort nur die Unterrichtszeit (verrät die Antwort nicht),
+  // danach, was angerechnet wird bzw. „heute frei“
+  function schulOffen(a) {
+    return !!a.schulDef && !!tag && !!tag.morgen && tag.morgen.art === 'schule' && (phase === 'tagStart' || (phase === 'frage' && !!frage && !frage.ergebnis));
+  }
+  function schulZusatz(a, offen) {
+    const f = a.schulDef;
+    if (!f) return '';
+    if (offen) return 'Berufsschule ' + (f.vor ? 'ab ' + uhrText(f.von) : 'bis ' + uhrText(f.bis)) + NBSP + 'Uhr';
+    return a.frei ? 'Berufsschule' + NBSP + '– heute frei' : 'Berufsschule zählt ' + stdZahl(a.schule) + NBSP + 'Std.';
+  }
+  function regelZeile(a, kurz, offen) {
+    const r = (kurz ? a.P.regelKurz : a.P.regel) || '', z = schulZusatz(a, offen);
+    return z ? (r ? r + NBSP + '– ' : '') + z : r;
+  }
+  // längste mögliche Regelzeile (vor und nach der Antwort), damit die Karte ihre Größe behält
+  function regelLaengste(a, kurz) { const x = regelZeile(a, kurz, true), y = regelZeile(a, kurz, false); return y.length > x.length ? y : x; }
 
   // Stempelkarte aus dem gemalten Bild zusammengesetzt (Kopfstreifen, Papier, Zeilen mit Linie, Rand unten);
   // Text setzt der Code: Wochentag bzw. Name, „Heute geplant“, Regel der Person, Arbeitszeit, Stempel-Zeilen
@@ -1191,15 +1387,16 @@
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     let ty = infoY + pad * 0.8 + fs * 0.92;
     g.fillStyle = BLAUGRAU; g.font = `600 ${fs * 0.92}px ${SCHRIFT}`;
-    if (m.plan1) g.fillText('Heute geplant: ' + std(a.plan), pad, ty, W - 2 * pad);
-    else { g.fillText('Heute geplant:', pad, ty); ty += fs * 1.15; g.fillText(std(a.plan), pad, ty); }
-    const regelText = L.regelKurz ? a.P.regelKurz : a.P.regel;
+    const schulFrage = schulOffen(a), planWert = schulFrage ? '?' : a.frei ? '–' : std(a.plan);
+    if (m.plan1) g.fillText('Heute geplant: ' + planWert, pad, ty, W - 2 * pad);
+    else { g.fillText('Heute geplant:', pad, ty); ty += fs * 1.15; g.fillText(planWert, pad, ty); }
+    const regelText = regelZeile(a, L.regelKurz, schulFrage);
     if (LV.personen && regelText) {
-      g.font = `600 ${fs * 0.76}px ${SCHRIFT}`; g.fillStyle = HINWEIS;
+      g.font = `600 ${fs * KLEIN.regel}px ${SCHRIFT}`; g.fillStyle = HINWEIS;
       const zeilen = umbrechen(g, regelText, W - 2 * pad);
       ty += fs * 0.25;
-      zeilen.forEach(z => { ty += fs * 0.92; g.fillText(z, pad, ty, W - 2 * pad); });
-      ty += (m.regelZeilen.length - zeilen.length) * fs * 0.92;
+      zeilen.forEach(z => { ty += fs * KLEIN.regelZ; g.fillText(z, pad, ty, W - 2 * pad); });
+      ty += (m.regelZeilen.length - zeilen.length) * fs * KLEIN.regelZ;
     }
     // Arbeitszeit (läuft); Level 3: vor Beginn „ab 9:30“, in der Pause „Pause – noch 0:18“
     ty += fs * 0.55 + fs * 1.05;
@@ -1211,7 +1408,7 @@
     g.fillStyle = TEXT; g.font = `800 ${fs * 1.75}px ${SCHRIFT}`;
     // Ruhezeit-Frage offen: Beginn dieser Person bleibt bis zur Antwort offen (verrät sonst die Antwort, QA 22.10.2026)
     const offen = tag.morgen && tag.morgen.person === a.person && (phase === 'tagStart' || (phase === 'frage' && frage && !frage.ergebnis));
-    const wert = !a.begonnen && !einzeln() ? (offen ? 'Beginn: ?' : 'ab ' + uhrText(a.beginn) + NBSP + 'Uhr') : std(a.arbeit);
+    const wert = a.frei && !schulFrage ? 'frei' : !a.begonnen && !einzeln() ? (offen ? 'Beginn: ?' : 'ab ' + uhrText(a.beginn) + NBSP + 'Uhr') : std(a.arbeit);
     if (a.warnung && phase === 'lauf') {
       // Warnhinweis vor einer Grenze: Arbeitszeit leuchtet dezent (pulsierender warmer Hintergrund)
       const p = RUHIG ? 0.5 : 0.5 + 0.5 * Math.sin(performance.now() / 1000 * Math.PI * 2 * 1.2);
@@ -1231,19 +1428,21 @@
       const neu = a === aktiv && i === a.stempel.length - 1 && phase === 'rueck', ein = neu && !RUHIG ? glatt(phaseT / 0.25) : 1;
       g.save();
       g.globalAlpha *= ein;
-      g.fillStyle = BLAUGRAU; g.font = `600 ${fs * 0.72}px ${SCHRIFT}`;
+      g.fillStyle = BLAUGRAU; g.font = `600 ${fs * KLEIN.zeile}px ${SCHRIFT}`;
       g.fillText(st.art === 'beginn' ? 'Eingestempelt' : st.art === 'pause' ? 'Pause' : 'Feierabend', pad, zy + m.zeile * 0.42);
       g.fillStyle = '#3a3357'; g.font = `700 ${fs * 0.9}px "Courier New", Courier, monospace`;
       g.fillText(uhrText(st.uhr) + NBSP + 'Uhr', pad, zy + m.zeile * 0.86);
       g.restore();
-      if (st.ergebnis && (!neu || phaseT > STEMPEL_KLEIN)) zeichneKleinStempel(g, st, W * 0.5, zy + m.zeile * 0.12, W * 0.5 - pad * 0.6, m.zeile * 0.76, 1);
+      // kleiner Stempel in der Zeile: erscheint, sobald der große auf dem Zettel gelandet ist
+      if (st.ergebnis && (!neu || RUHIG || phaseT > STEMPEL_KLEIN)) zeichneKleinStempel(g, st, W * 0.5, zy + m.zeile * 0.12, W * 0.5 - pad * 0.6, m.zeile * 0.76,
+        neu && !RUHIG ? weich((phaseT - STEMPEL_KLEIN) / 0.3) : 1);
     }
     g.restore();
   }
   const STEMPEL = { puenktlich: 'PÜNKTLICH', ok: 'OK', frueh: 'ZU FRÜH', ueberstunden: 'ÜBERSTUNDEN', unnoetig: 'UNNÖTIG', verstoss: 'VERSTOSS',
     richtig: 'RICHTIG', falsch: 'FALSCH', keine: 'KEINE ANTWORT', knapp: 'KNAPP' };
   const stempelFarbe = e => e === 'verstoss' ? WARNUNG : e === 'puenktlich' || e === 'ok' || e === 'richtig' ? GUT : HINWEIS;
-  const STEMPEL_KLEIN = 1.0;   // ab hier steht der kleine Stempel in der Zeile
+  const STEMPEL_KLEIN = 0.45;   // ab hier steht der kleine Stempel in der Zeile (der große liegt auf dem Zettel)
   function zeichneKleinStempel(g, st, x, y, w, h, a) {
     const farbe = stempelFarbe(st.ergebnis), text = STEMPEL[st.ergebnis];
     g.save();
@@ -1260,115 +1459,132 @@
     g.fillText(text, 0, fs * 0.05);
     g.restore();
   }
-  // Stempel, der aufs Papier fällt (wie Einspruch!) – auf der Karte bzw. der Notiz
-  function stempelFallen(g, text, farbe, mx, my, maxB, t, klein) {
-    let fs = begrenzen(maxB * 0.16, 14, 30);
+  // Stempel, der aufs Papier fällt (wie Einspruch!) – links bündig auf dem Zettel; hoehe = Höhe des Stempels, maxB = größte Breite
+  function stempelFallen(g, text, farbe, links, my, hoehe, maxB, t) {
+    let fs = hoehe / 1.65;
     g.save();
     g.font = `900 ${fs}px ${SCHRIFT}`;
     let tw = g.measureText(text).width;
     if (tw + fs * 0.9 > maxB) { fs *= maxB / (tw + fs * 0.9); g.font = `900 ${fs}px ${SCHRIFT}`; tw = g.measureText(text).width; }
     const bw = tw + fs * 0.9, bh = fs * 1.65;
-    const sk0 = RUHIG ? 1 : t < 0.16 ? 1.7 - beschl(t / 0.16) * 0.7 : t < 0.36 ? 1 - Math.sin((t - 0.16) / 0.2 * Math.PI) * 0.06 : 1;
-    const sch = klein ? klein.t : 0, sk = sk0 * (1 + ((klein ? klein.f(bh) : 1) - 1) * sch);
-    const px = klein ? mx + (klein.x - mx) * sch : mx, py = klein ? my + (klein.y - my) * sch : my;
-    g.globalAlpha = Math.min(1, t / 0.12) * 0.95;
-    g.translate(px, py); g.rotate(-0.12 + 0.03 * sch); g.scale(sk, sk);
+    const sk = RUHIG ? 1 : t < 0.16 ? 1.7 - beschl(t / 0.16) * 0.7 : t < 0.36 ? 1 - Math.sin((t - 0.16) / 0.2 * Math.PI) * 0.06 : 1;
+    g.globalAlpha *= (RUHIG ? 1 : Math.min(1, t / 0.12)) * 0.95;
+    g.translate(links + bw / 2 + 2, my); g.rotate(-0.09); g.scale(sk, sk);
     runderKasten(g, -bw / 2, -bh / 2, bw, bh, fs * 0.22);
     g.fillStyle = 'rgba(255,253,246,.85)'; g.fill();
     g.lineWidth = fs * 0.13; g.strokeStyle = farbe; g.stroke();
     g.fillStyle = farbe; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, 0, fs * 0.06);
     g.restore();
-    return bh;
+    return bw;
   }
-  function punktePille(g, delta, px, py, t, breite) {
-    if (!delta || t < 0.25 || t > 1.6) return;
-    const pf = begrenzen(breite * 0.095, 12, 17), txt = (delta > 0 ? '+' : '−') + Math.abs(delta) + ' Punkte';
+  function pillenBreite(g, delta, pf) {
+    if (!delta) return 0;
+    g.save(); g.font = `800 ${pf}px ${SCHRIFT}`;
+    const b = g.measureText((delta > 0 ? '+' : '−') + Math.abs(delta) + ' Punkte').width + pf * 1.6;
+    g.restore();
+    return b;
+  }
+  // „+91 Punkte“ / „−56 Punkte“ als Pille, rechts bündig; bleibt stehen, solange der Zettel offen ist
+  function punktePille(g, delta, rechts, my, alpha, pf) {
+    if (!delta || alpha <= 0) return;
+    const txt = (delta > 0 ? '+' : '−') + Math.abs(delta) + ' Punkte';
     g.save();
-    g.globalAlpha = Math.min(1, (t - 0.25) / 0.2) * (1 - weich((t - 1.2) / 0.3));
+    g.globalAlpha *= alpha;
     g.font = `800 ${pf}px ${SCHRIFT}`;
     const pw = g.measureText(txt).width + pf * 1.6, ph = pf * 1.9;
-    py -= Math.max(0, 0.45 - t) * 30;
-    runderKasten(g, px - pw / 2, py - ph / 2, pw, ph, ph / 2);
+    runderKasten(g, rechts - pw, my - ph / 2, pw, ph, ph / 2);
     g.fillStyle = 'rgba(28,37,43,.9)'; g.fill(); g.lineWidth = 2; g.strokeStyle = delta > 0 ? '#5f9e3a' : HINWEIS; g.stroke();
     g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(txt, px, py + 1);
+    g.fillText(txt, rechts - pw / 2, my + 1);
     g.restore();
   }
-  // großer Stempel über der aktiven Karte, danach schrumpft er in seine Zeile; darunter „+91 Punkte“
-  function zeichneGrossStempel(g) {
-    const st = letzter, t = phaseT, R = L.karten[aktiv.i], m = L.inhalt[aktiv.i];
-    const zeile = aktiv.stempel.length - 1, zy = R.y + m.kopf + m.info + Math.min(m.zeilenAnz - 1, zeile) * m.zeile + m.zeile / 2;
-    // kleiner und tiefer als früher: auf den Stempelzeilen, die Arbeitszeit bleibt lesbar (MZ-Test, 22.10.2026)
-    const zx = R.x + R.w * 0.75 - m.pad * 0.3, mx = R.x + R.w / 2, my = R.y + m.kopf + m.info + m.zeile * 0.55;
-    const klein = { x: zx, y: zy, t: RUHIG ? (t > 0.8 ? 1 : 0) : weich((t - 0.75) / 0.25), f: bh => (m.zeile * 0.76 * 0.5 * 1.5) / bh };
-    let bh = R.w * 0.2;
-    if (t <= STEMPEL_KLEIN) bh = stempelFallen(g, STEMPEL[st.ergebnis], stempelFarbe(st.ergebnis), mx, my, R.w * 0.82, t, klein);
-    let py = my + R.w * 0.11 + 18;
-    // Begründung bei Verstoß, Knapp und unnötiger Pause (z. B. „Über 6 Std. ohne Pause“), bis zum Ende der Rückmeldung
-    if (st.grund && t > 0.2) {
-      const gf = begrenzen(R.w * 0.075, 10, 14);
-      g.save();
-      g.globalAlpha = Math.min(1, (t - 0.2) / 0.2);
-      g.font = `700 ${gf}px ${SCHRIFT}`;
-      const zl = umbrechen(g, st.grund, Math.max(R.w * 1.1, 120) - gf * 1.4), bw = Math.max(...zl.map(z => g.measureText(z).width)) + gf * 1.4, bhh = zl.length * gf * 1.25 + gf * 0.8;
-      runderKasten(g, mx - bw / 2, py - gf * 0.6, bw, bhh, gf * 0.5);
-      g.fillStyle = stempelFarbe(st.ergebnis); g.fill();
-      g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      zl.forEach((z, i) => g.fillText(z, mx, py - gf * 0.6 + gf * 0.4 + gf * 1.25 * (i + 0.5)));
-      g.restore();
-      py += bhh + gf * 0.4 + 12;
-    }
-    punktePille(g, st.delta, mx, py, t, R.w);
+  // Sichtbarkeit des Zettels (0–1): Einblenden, Ausblenden nach „Weiter“ bzw. am Ende der kurzen Rückmeldung
+  function zettelZeit() {
+    if (!zettel) return 0;
+    if (zettel.art === 'frage' && zettel.offen) return frage ? frage.t : 0;
+    return phase === 'rueck' || phase === 'frageRueck' ? phaseT : 9;
+  }
+  function zettelSicht() {
+    if (!zettel) return 0;
+    const rein = zettel.art === 'frage' || RUHIG ? (zettel.offen && !RUHIG ? glatt(zettelZeit() / 0.3) : 1) : glatt(phaseT / 0.3);
+    let aus = 0;
+    if (zettel.weiter && weiterBei != null) aus = RUHIG ? 1 : beschl((phaseT - weiterBei) / DAUER.zettelAus);
+    else if (!zettel.weiter && !zettel.offen && (phase === 'rueck' || phase === 'frageRueck')) aus = RUHIG ? 0 : beschl((phaseT - (zettel.dauer - 0.3)) / 0.3);
+    return Math.max(0, Math.min(rein, 1 - aus));
   }
 
-  // Notiz mit Frage („Chef:“ bzw. „Frage:“), Ja/Nein, Restzeit als Balken; nach der Antwort Stempel und Begründung
-  function zeichneNotiz(g) {
-    const nm = notizMasse();
-    if (!nm) return;
-    const f = frage, t = f.ergebnis ? 9 : f.t, rein = RUHIG ? 1 : glatt(t / 0.3);
-    let aus = 0;
-    if (phase === 'frageRueck') aus = RUHIG ? 0 : beschl((phaseT - (DAUER.frageRueck - 0.3)) / 0.3);
+  // Zettel in fester Fläche neben/über der Karte: Frage (gelber Notizzettel, „Chef:“/„Frage:“, Ja/Nein, Restzeit) bzw.
+  // Rückmeldung zu einem Stempel (heller Zettel mit Klebestreifen). Nach der Antwort bzw. beim Stempel: großer Stempel
+  // mit Punkten, darunter groß die Begründung und die Einzelheit, unten „Weiter“ (Uhr steht, bis getippt wird).
+  function zeichneZettel(g) {
+    const m = zettelMasse();
+    if (!m) return;
+    const z = zettel, sicht = zettelSicht(), t = zettelZeit();
+    if (sicht <= 0) return;
+    const rein = RUHIG ? 1 : z.art === 'frage' ? (z.offen ? glatt(t / 0.3) : 1) : glatt(phaseT / 0.3);
     g.save();
-    g.globalAlpha = Math.min(rein, 1 - aus);
-    g.translate(nm.x + nm.w / 2, nm.y + nm.h / 2 - (1 - rein) * 20); g.rotate(-0.015);
-    const x0 = -nm.w / 2, y0 = -nm.h / 2;
+    g.globalAlpha = sicht;
+    g.translate(m.x + m.w / 2, m.y + m.h / 2 - (1 - rein) * 20); g.rotate(z.art === 'frage' ? -0.015 : 0.012);
+    const x0 = -m.w / 2, y0 = -m.h / 2, p = m.pad, fs = m.fs;
+    g.save();
     g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 16; g.shadowOffsetY = 6;
     const pap = g.createLinearGradient(0, y0, 0, -y0);
-    pap.addColorStop(0, '#fff6b8'); pap.addColorStop(1, '#f6e48c');
-    g.fillStyle = pap; g.fillRect(x0, y0, nm.w, nm.h);
-    g.shadowColor = 'transparent';
-    const p = nm.pad, fs = nm.fs;
+    if (z.art === 'frage') { pap.addColorStop(0, '#fff6b8'); pap.addColorStop(1, '#f6e48c'); }
+    else { pap.addColorStop(0, '#fffdf4'); pap.addColorStop(1, '#f4ecd3'); }
+    g.fillStyle = pap; g.fillRect(x0, y0, m.w, m.h);
+    g.restore();
+    if (z.art !== 'frage') {   // Klebestreifen oben (wie Level-Titel und Start-/Endbild)
+      const kw = Math.min(90, m.w * 0.3), kh = 16;
+      g.save(); g.translate(0, y0); g.rotate(-0.05);
+      g.fillStyle = 'rgba(248,242,212,.92)'; g.shadowColor = 'rgba(0,0,0,.2)'; g.shadowBlur = 3; g.shadowOffsetY = 1;
+      g.fillRect(-kw / 2, -kh / 2, kw, kh);
+      g.shadowColor = 'transparent'; g.strokeStyle = 'rgba(110,98,62,.35)'; g.lineWidth = 1; g.strokeRect(-kw / 2, -kh / 2, kw, kh);
+      g.restore();
+    }
+    const o = m.o;
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    g.fillStyle = BLAUGRAU; g.font = `800 ${fs * 0.9}px ${SCHRIFT}`;
-    g.fillText(f.morgen ? 'Frage:' : 'Chef:', x0 + p, y0 + p + fs * 0.9);
-    g.fillStyle = TEXT; g.font = `600 ${fs}px ${SCHRIFT}`;
-    nm.zeilen.forEach((z, i) => g.fillText(z, x0 + p, y0 + p + fs * 1.3 + 6 + (i + 1) * fs * 1.3 - fs * 0.3));
-    const ky = nm.ja.y - nm.y + y0;
-    if (!f.ergebnis) {
-      // Restzeit
-      const rest = Math.max(0, 1 - f.t / FRAGE_ZEIT), bx = x0 + p, bwid = nm.w - 2 * p;
-      g.fillStyle = 'rgba(71,94,108,.25)'; g.fillRect(bx, ky - 9, bwid, 3);
-      g.fillStyle = rest < 0.3 ? WARNUNG : BLAUGRAU; g.fillRect(bx, ky - 9, bwid * rest, 3);
+    const pf = m.pf;
+    g.fillStyle = BLAUGRAU; g.font = `800 ${m.kf}px ${SCHRIFT}`;
+    m.kopfZ.forEach((zl, i) => g.fillText(zl, x0 + p, y0 + o.kopf + i * m.kf * 1.25));
+    if (m.frageZ.length) {
+      g.fillStyle = TEXT; g.font = `600 ${fs}px ${SCHRIFT}`;
+      m.frageZ.forEach((zl, i) => g.fillText(zl, x0 + p, y0 + o.frage + (i + 1) * fs * 1.3 - fs * 0.3));
+    }
+    if (z.offen) {
+      // Restzeit und Ja/Nein
+      const ky = y0 + o.knoepfe, rest = Math.max(0, 1 - (frage ? frage.t : 0) / FRAGE_ZEIT);
+      g.fillStyle = 'rgba(71,94,108,.25)'; g.fillRect(x0 + p, ky - 9, m.innen, 3);
+      g.fillStyle = rest < 0.3 ? WARNUNG : BLAUGRAU; g.fillRect(x0 + p, ky - 9, m.innen * rest, 3);
       const aktivJN = phase === 'frage';
       [['ja', 'Ja', F.haupt, F.hauptText || R_.textFarbe(F.haupt)], ['nein', 'Nein', BLAUGRAU, '#ffffff']].forEach(([id, text, farbe, schrift]) => {
-        const k = nm[id];
-        knopf(g, { x: k.x - nm.x + x0, y: k.y - nm.y + y0, w: k.w, h: k.h }, text, farbe, schrift, aktivJN ? 1 : 0.55, druck[id] || 0);
+        const k = m[id];
+        knopf(g, { x: k.x - m.x + x0, y: k.y - m.y + y0, w: k.w, h: k.h }, text, farbe, schrift, aktivJN ? 1 : 0.55, druck[id] || 0);
       });
-    } else {
-      const tt = phase === 'frageRueck' ? phaseT : 9;
-      const by = ky + nm.ja.h * 0.5;
-      const bh = stempelFallen(g, STEMPEL[f.ergebnis], stempelFarbe(f.ergebnis), -nm.w * 0.2, by - nm.ja.h * 0.1, Math.min(nm.w * 0.48, nm.ja.h * 3.6), tt, null);
-      // Begründung (nur nach der Antwort): bei falscher oder fehlender Antwort beginnt sie mit der richtigen
-      const begr = (f.ergebnis === 'richtig' ? '' : 'Richtig: „' + (f.def.antwort === 'ja' ? 'Ja' : 'Nein') + '“' + NBSP + '– ') + f.def.grund;
-      g.save();
-      g.globalAlpha *= Math.min(1, Math.max(0, (tt - 0.3) / 0.25));
-      g.fillStyle = TEXT; g.font = `700 ${fs * 0.82}px ${SCHRIFT}`; g.textAlign = 'left'; g.textBaseline = 'middle';
-      let bf = fs * 0.82, zl;
-      for (;;) { g.font = `700 ${bf}px ${SCHRIFT}`; zl = umbrechen(g, begr, nm.w * 0.37 - p); if (zl.length * bf * 1.08 <= nm.ja.h + p || bf <= 9) break; bf -= 0.5; }
-      zl.forEach((z, i) => g.fillText(z, nm.w * 0.13, by - nm.ja.h * 0.1 + (i - (zl.length - 1) / 2) * bf * 1.08));
-      g.restore();
-      punktePille(g, f.delta, -nm.w * 0.18, by + bh / 2 + 6, tt, nm.w * 0.6);
+    }
+    if (z.stempel) {
+      const farbe = stempelFarbe(z.stempel), sy = y0 + o.stempel;
+      stempelFallen(g, STEMPEL[z.stempel], farbe, x0 + p, sy, m.sh, m.innen * (m.kompakt ? 0.5 : 0.6), t);
+      punktePille(g, z.delta, x0 + m.w - p, m.pilleKopf ? y0 + o.kopf - m.kf * 0.35 : o.pille != null ? y0 + o.pille : sy, RUHIG ? 1 : Math.min(1, Math.max(0, (t - 0.25) / 0.2)), pf);
+      // Begründung (groß) und Einzelheit, links ein Strich in der Stempelfarbe
+      const ein = RUHIG ? 1 : Math.min(1, Math.max(0, (t - 0.3) / 0.25));
+      if (m.grundZ.length) {
+        g.save();
+        g.globalAlpha *= ein;
+        const hoch = m.grundZ.length * m.fg * 1.3 + (m.detailZ.length ? 3 + m.detailZ.length * m.fd * 1.3 : 0);
+        g.fillStyle = farbe; g.fillRect(x0 + p, y0 + o.grund + 1, 3, hoch - 2);
+        g.fillStyle = TEXT; g.font = `700 ${m.fg}px ${SCHRIFT}`;
+        m.grundZ.forEach((zl, i) => g.fillText(zl, x0 + p + 11, y0 + o.grund + (i + 1) * m.fg * 1.3 - m.fg * 0.3));
+        if (m.detailZ.length) {
+          g.fillStyle = BLAUGRAU; g.font = `600 ${m.fd}px ${SCHRIFT}`;
+          m.detailZ.forEach((zl, i) => g.fillText(zl, x0 + p + 11, y0 + o.detail + (i + 1) * m.fd * 1.3 - m.fd * 0.3));
+        }
+        g.restore();
+      }
+    }
+    if (z.weiter && m.weiterK) {
+      const k = m.weiterK, hell = RUHIG ? (t >= DAUER.weiterAb ? 1 : 0.5) : 0.5 + 0.5 * weich((t - DAUER.weiterAb + 0.2) / 0.2);
+      knopf(g, { x: k.x - m.x + x0, y: k.y - m.y + y0, w: k.w, h: k.h }, 'Weiter', F.haupt, F.hauptText || R_.textFarbe(F.haupt), hell, druck.weiter || 0);
     }
     g.restore();
   }
@@ -1473,13 +1689,14 @@
   // ---------- Testhilfen (für Spieler unsichtbar) ----------
   // Adresse: #level=N, #tag=3 (mit Mittwoch beginnen), #plan=5,9.5,6.5,8,10 (Level 1: geplante Stunden je Tag),
   //          #frage=N (Level 2: Tag Nr. N aus daten.js zuerst; Level 3: Ruhezeit-Frage Nr. N am Dienstag, Start Dienstag),
-  //          #sonntag=N (Level 3: gleich Sonntag mit Frage Nr. N), #ende=sieg-854 / #ende=verloren / #ende=frei.
+  //          #sonntag=N (Level 3: gleich Sonntag mit Frage Nr. N), #schule=N (Berufsschul-Frage Nr. N: Level 2 am ersten Tag,
+//          Level 3 am Dienstag, Start Dienstag), #ende=sieg-854 / #ende=verloren / #ende=frei.
   // window.__test: wertung, antwortWertung, woche, zustand, tippe('pause'|'feierabend', karte), antworte('ja'|'nein'),
   //                level(n), freischaltungZuruecksetzen(), endbild(art, wert), knoepfe (Mitten zum echten Tippen, auch ja/nein),
-  //                arbeitSetzen(h, karte), uhrSetzen(h) (Level 3) – nur zum Testen
+  //                arbeitSetzen(h, karte), uhrSetzen(h) (Level 3), weiter() (Rückmeldung bestätigen) – nur zum Testen
   const mitte = k => ({ x: k.x + k.w / 2, y: k.y + k.h / 2 });
   window.__test = {
-    LEVEL, PERSONEN, TAGE2, RUHEZEIT, SONNTAG, VOLL, STD_SEK, DAUER, PLAN, BEGINN, FRAGE_ZEIT,
+    LEVEL, PERSONEN, TAGE2, RUHEZEIT, SONNTAG, SCHULE, ALLE, anrechnung, schulEintrag, VOLL, STD_SEK, DAUER, PLAN, BEGINN, FRAGE_ZEIT,
     DATEN_HINWEISE, wunschPlan, erlaubtBeiJa, wertung, antwortWertung, anteilNachAbstand, momente, stufe, bilanz, woche1, woche2, woche3, tagMomente, frei, tageszeit,
     get woche() { return woche && JSON.parse(JSON.stringify(woche)); },
     tippe: (art, i) => tippe(art, i || 0),
@@ -1488,13 +1705,15 @@
     freischaltungZuruecksetzen: () => { try { localStorage.removeItem(FREI_KEY); } catch (e) { /* privat */ } wahlAufbauen(); },
     endbild: (art, wert) => { sprungEndeArt = art; beispielEnde(art, wert); },
     arbeitSetzen: (h, i) => { const a = tag && tag.leute[i || 0]; if (a && phase === 'lauf') { a.arbeit = h; uhrAnz = echteUhr(); } },
+    weiter: () => weiter(),
     uhrSetzen: h => { if (!einzeln() && phase === 'lauf') { uhr = h; uhrAnz = h; } },
     get knoepfe() {
       if (!L) return null;
       const o = {};
       L.knoepfe.forEach(k => { o[k.id] = mitte(k); });
-      const nm = notizMasse();
-      if (nm) { o.ja = mitte(nm.ja); o.nein = mitte(nm.nein); }
+      const zm = zettelMasse();
+      if (zm && zm.ja) { o.ja = mitte(zm.ja); o.nein = mitte(zm.nein); }
+      if (zm && zm.weiterK) o.weiter = mitte(zm.weiterK);
       return o;
     },
     get layout() { return L; },
@@ -1503,8 +1722,10 @@
       return { level: LV.nr, phase, phaseT, tagNr, punkte: punkteJetzt(), summeAnteil, abzuege, M, verstoesse, anzahl, korrekt, unnoetig, uhr: uhrAnz,
         tag: tag && { name: tag.name, sonntag: tag.sonntag, morgen: tag.morgen && tag.morgen.nr,
           leute: tag.leute.map(a => ({ person: a.person, plan: a.plan, beginn: a.beginn, arbeit: a.arbeit, pausen: a.pausen, pausenzeit: a.pausenzeit, pauseRest: a.pauseRest,
-            begonnen: a.begonnen, fertig: a.fertig, frage: a.frage && a.frage.text, stempel: a.stempel.map(s => s.art + ':' + (s.ergebnis || '') + '@' + uhrText(s.uhr)) })) },
+            begonnen: a.begonnen, fertig: a.fertig, frei: a.frei, schule: a.schule, frage: a.frage && a.frage.text, stempel: a.stempel.map(s => s.art + ':' + (s.ergebnis || '') + '@' + uhrText(s.uhr)) })) },
         frage: frage && { text: frage.def.text, antwort: frage.antwort, ergebnis: frage.ergebnis, t: frage.t, richtig: frage.def.antwort },
+        zettel: zettel && { art: zettel.art, kopf: zettel.kopf, stempel: zettel.stempel || null, grund: zettel.grund || '', detail: zettel.detail || '', weiter: !!zettel.weiter,
+          offen: !!zettel.offen, weiterBei, masse: zettel.masse && { x: zettel.masse.x, y: zettel.masse.y, w: zettel.masse.w, h: zettel.masse.h, fg: zettel.masse.fg, fd: zettel.masse.fd, detail: zettel.masse.detailZ.length } },
         gewicht: Object.assign({}, gewicht) };
     },
   };
