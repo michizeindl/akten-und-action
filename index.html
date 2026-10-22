@@ -122,6 +122,7 @@
   .rechtliches a { color: inherit; text-decoration: underline; text-decoration-color: rgba(255,255,255,.55); text-underline-offset: 2px; }
   .rechtliches a:hover, .rechtliches a:focus-visible { text-decoration-color: currentColor; }
   .rechtliches a + a { margin-left: 14px; }
+  .rechtliches.nachunten { display: none; }   /* zweite Fassung ganz unten, nur im Hochformat sichtbar (siehe unten) */
   /* Band dreigeteilt (MZ, 22.10.2026): Kanzleiname und Spruch in Weiß auf hellem Grün (wie bisher), die Adressen in der
      Mitte auf einer weißen Fläche (volle Bandhöhe, gerade Kanten) in hellem Grün ohne Schatten. Hochformat: Adressbereich unten weiß. */
   .kontakt { display: flex; flex-direction: column; gap: 10px; width: auto; align-self: stretch;
@@ -179,6 +180,21 @@
   /* flach und quer: Logo-Balken oben, Kärtchen darunter (MZ, 22.10.2026) */
   @media (max-height: 520px) and (orientation: landscape) {
     .spiele { margin-bottom: 26px; }   /* mind. 20 px Abstand zum Band (MZ, 22.10.2026) */
+  }
+  /* Hochformat (MZ, 23.10.2026): kein Spruch; Impressum/Datenschutz auf eigener grüner Fläche ganz unten unter den Adressen
+     (bündig bis zum unteren Rand). Oben im Band bleibt nur der Kanzleiname. Die Fassung im Spruch ist mit ihm ausgeblendet –
+     Screenreader lesen die Links also nur einmal. Querformat bleibt unverändert. Steht nach den Regeln für flache Fenster. */
+  @media (orientation: portrait) {
+    /* obere grüne Fläche niedrig, Kanzleiname etwas größer und mittig (gleicher Abstand oben und unten) */
+    .fuss { padding-top: 10px; padding-bottom: 0; gap: 10px; }
+    .spruch.kanzlei { font-size: 17px; line-height: 1.25; }
+    .spruch.spruchtext { display: none; }
+    .kontakt { margin-bottom: 0; padding-bottom: 14px; }
+    /* Schrift wie bisher unter dem Spruch (12px, fett, unterstrichen, 14px Abstand) – nur die Lage ist neu */
+    .rechtliches.nachunten {
+      display: block; align-self: stretch; margin: -10px -18px 0; padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
+      background: var(--akzent); color: #fff; text-align: center;
+    }
   }
 
   /* ---------- Animationen (sanft, MZ 22.10.2026): gestaffelt in ca. 1,6s – Logo-Balken gleitet von oben herein, Kärtchen (wie hingeworfen, dreht
@@ -303,11 +319,16 @@
     logo.alt = K.firma || '';
     document.querySelector('.titel').textContent = T.titel || 'Spiele';
     document.querySelector('.spruchtext').textContent = K.spruch || '';
-    // Impressum/Datenschutz unter dem Spruch (Adressen aus kunde.js, neuer Tab)
+    // Impressum/Datenschutz (Adressen aus kunde.js, neuer Tab): quer unter dem Spruch, hochkant ganz unten unter den
+    // Adressen (MZ, 23.10.2026). Zwei Fassungen, per CSS ist immer nur eine sichtbar (die andere display: none).
     if ((K.rechtliches || []).length) {
-      const r = document.createElement('span'); r.className = 'rechtliches';
-      K.rechtliches.forEach(l => { const a = document.createElement('a'); a.href = l.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = l.text; r.append(a); });
-      document.querySelector('.spruchtext').append(r);
+      const links = cls => {
+        const r = document.createElement('span'); r.className = cls;
+        K.rechtliches.forEach(l => { const a = document.createElement('a'); a.href = l.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = l.text; r.append(a); });
+        return r;
+      };
+      document.querySelector('.spruchtext').append(links('rechtliches'));
+      document.querySelector('.fuss').append(links('rechtliches nachunten'));
     }
     document.querySelector('.kanzlei').textContent = K.kanzlei || '';
     // Kontakt-Band: Daten aus kunde.js (je Standort), Telefon/E-Mail/Web als Links; Trennzeichen „ – “ mit geschütztem Leerzeichen
