@@ -4,7 +4,7 @@
 // antwortet die Kopie aus dem Zwischenspeicher. Nur eigene Dateien, keine fremden Server, kein Tracking.
 // Bei Änderungen an dieser Datei VERSION erhöhen – alte Zwischenspeicher dieser Sammlung werden dann gelöscht.
 const PREFIX = 'akten-action-';
-const VERSION = PREFIX + 'v1';
+const VERSION = PREFIX + 'v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 

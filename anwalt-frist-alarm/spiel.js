@@ -428,8 +428,15 @@
     const a = Math.min(1, (t - grenze) / (T - grenze));
     return Math.round(PUNKTE.voll + (PUNKTE.letzt - PUNKTE.voll) * a);
   }
-  function stufe(p) {   // gemeinsame Grenzen 900/800/700/550
-    return p >= 900 ? 'Fristen-Profi' : p >= 800 ? 'Sauber sortiert' : p >= 700 ? 'Solide Kanzleiarbeit' : p >= 550 ? 'Knapp vor Ablauf' : 'Die Akten stapeln sich';
+  // Bewertungen je Level (MZ, 23.10.2026), gemeinsame Grenzen 900/800/700/550
+  const STUFEN = {
+    1: ['Fristen-Profi', 'Sauber sortiert', 'Solide Kanzleiarbeit', 'Knapp vor Ablauf', 'Die Akten stapeln sich'],
+    2: ['Rechtsgebiete-Profi', 'Sauber sortiert', 'Solide Kanzleiarbeit', 'Manches im falschen Fach', 'Die Akten stapeln sich'],
+    3: ['Wie ein Profi gehandelt', 'Klug vorgegangen', 'Solide Kanzleiarbeit', 'Mit Rücksprache besser', 'Mandanten in Sorge'],
+  };
+  function stufe(p, nr) {
+    const t = STUFEN[nr || LV.nr] || STUFEN[1];
+    return p >= 900 ? t[0] : p >= 800 ? t[1] : p >= 700 ? t[2] : p >= 550 ? t[3] : t[4];
   }
   function sek(t) { return t.toFixed(1).replace('.', ',') + 's'; }   // „84,3s“ – ohne Leerzeichen (Nutzerwunsch)
   function zahl(p) { return p.toLocaleString('de-DE'); }
@@ -632,7 +639,8 @@
   // erklaerungen.js (Entwurf, MZ prüft), weiter erst mit „Weiter“. Die Akten-Uhr steht so lange; Punkte und Gesamtzeit
   // (bedenk bzw. T) sind bis dahin schon verbucht und werden nicht verfälscht.
   const ERKL = window.FRIST_ERKLAERUNGEN || {};
-  const ZETTEL = { ab: 0.5, weiterAb: 0.85, aus: 0.25 };
+  // weiterAb: „Weiter“ gleich mit dem Zettel bedienbar (Spielertest 23.10.2026: vorher 0,35s blass/gesperrt), kurzer Schutz gegen Doppeltipp
+  const ZETTEL = { ab: 0.5, weiterAb: 0.65, aus: 0.25 };
   let erkl = null;
   function erklStarten(kopf) {
     const grund = (ERKL[LV.nr] || {})[akte.nr] || '';
@@ -779,6 +787,10 @@
     .levelwahl span { display: block; font-size: 11.5px; font-weight: 600; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .levelwahl small { display: block; margin-top: 2px; font-size: 11px; font-weight: 700; opacity: .75; }
     .levelwahl svg { width: 12px; height: 12px; vertical-align: -1px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+    /* schmal (320 px): längere Bewertungen je Level („Mit Rücksprache besser“) zweizeilig statt dreizeilig, damit die Knöpfe sichtbar bleiben */
+    @media (max-width: 340px) { .stil-zettel #endSchirm .ueberschrift { font-size: 27px; } }
+    /* schmal (320 px): „Rechtsgebiete“ ganz lesbar, einzeilig (Spielertest 23.10.2026; wie Einspruch!/Stempeluhr) */
+    @media (max-width: 340px) { .levelwahl button { padding-left: 1px; padding-right: 1px; } .levelwahl span { font-size: 10.5px; letter-spacing: -0.1px; } }
     @media (max-height: 400px) { .levelwahl { margin-bottom: 6px; } .levelwahl button { padding: 3px 3px; } .levelwahl b { font-size: 12.5px; } .levelwahl span { display: none; } }`;
   document.head.append(stil);
   const wahl = document.createElement('div');
@@ -1412,7 +1424,7 @@
       m.grundZ.forEach((z, i) => g.fillText(z, x0 + p + 11, y0 + o.grund + (i + 1) * m.ft * 1.3 - m.ft * 0.3));
     }
     const k = { x: x0 + p, y: y0 + o.weiter, w: m.innen, h: m.kh };
-    const hell = RUHIG ? (phaseT >= ZETTEL.weiterAb ? 1 : 0.5) : 0.5 + 0.5 * glatt((phaseT - ZETTEL.weiterAb + 0.2) / 0.2);
+    const hell = 1;   // erscheint mit dem Zettel (nicht mehr blass), aktiv ab ZETTEL.weiterAb
     const d = erkl.druck || 0, tief = d > 0 && !RUHIG ? Math.sin(d / 0.24 * Math.PI) : 0;
     g.save();
     g.globalAlpha *= hell;
@@ -1437,7 +1449,11 @@
   }
 
   // ---------- Testhilfen (für Spieler unsichtbar) ----------
-  // Adresse: #level=2 (Level wählen, auch wenn gesperrt), #akte=17 (diese Akte kommt zuerst), #ab=9 (mit der 9. Akte beginnen),
+  // Testhilfe Zeitlupe (MZ, 23.10.2026, für den Claude Player): #tempo=0.3 lässt die ganze Spielzeit 0,3× so schnell laufen
+  // (schritt bekommt dt × tempo) – alle Dauern, Fristen und Reaktionszeiten zählen in Spielzeit, die Punkte bleiben damit
+  // vergleichbar. Ohne #tempo genau wie bisher; nichts sichtbar, nichts gespeichert. Erlaubt 0,1–2.
+  const TEMPO_TEST = (() => { const m = /tempo=([\d.]+)/.exec(location.hash), t = m ? +m[1] : 1; return t >= 0.1 && t <= 2 ? t : 1; })();
+  // Adresse: #tempo=0.3 (Zeitlupe: Akten-Uhren, Flug und Wertung 0,3× so schnell), #level=2 (Level wählen, auch wenn gesperrt), #akte=17 (diese Akte kommt zuerst), #ab=9 (mit der 9. Akte beginnen),
   //          #ende=sieg-854 / #ende=chaos / #ende=frei (Beispiel-Endbild nach „Los geht's“; schreibt wie ein echtes Spiel den Bestwert).
   // window.__test: Rechenfunktionen und Zustand, z. B. __test.punkteFuer(true, 3.1, 7), __test.tippe(2), __test.level(2),
   //                __test.freischaltungZuruecksetzen().
@@ -1481,7 +1497,7 @@
     // von AtlasAudio (seit 22.10.2026), Schleife 20,65–78,79s; läuft im Startbild und endet mit „Los geht's“ (MZ, 21.10.2026)
     // läuft auch im Spiel weiter, dort auf 45 % abgesenkt, im Endbild wieder voll (MZ, 22.10.2026; Rahmen-Option imSpiel)
     startMusik: { datei: '../klaenge/musik.mp3', proben: 1281969, pegel: 0.22, imSpiel: 0.45 },
-    neu, schritt, zeichne, runter,
+    neu, schritt: TEMPO_TEST === 1 ? schritt : dt => schritt(dt * TEMPO_TEST), zeichne, runter,
   };
   R_.spiel(DEF);
   // Level aus der Adresse (Test) oder das zuletzt freigeschaltete … bleibt bei Level 1; Testhilfe #level=2

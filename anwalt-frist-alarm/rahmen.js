@@ -166,14 +166,15 @@
     for (let k = 0; k < b.numberOfChannels; k++) neu.getChannelData(k).set(b.getChannelData(k).subarray(ab, ab + laenge));
     return neu;
   }
-  function spieleClip(name) {
+  // ab = Startpunkt in Sekunden (optional); gibt einen Griff zum vorzeitigen Abbrechen zurück (sonst false)
+  function spieleClip(name, ab) {
     const b = clips[name + ':fertig'];
     if (!b) return false;
     const q = ac.createBufferSource(), v = ac.createGain();
     q.buffer = b; v.gain.value = clipPegel[name];
     q.connect(v).connect(ac.destination);
-    q.start();
-    return true;
+    q.start(0, Math.max(0, Math.min(ab || 0, b.duration - 0.01)));
+    return { aus() { try { v.gain.setTargetAtTime(0.0001, ac.currentTime, 0.03); q.stop(ac.currentTime + 0.25); } catch (e) { /* egal */ } } };
   }
 
   // Hintergrundgeräusch in Endlosschleife (startet mit dem Spiel, endet mit ihm)
@@ -272,16 +273,20 @@
   }
   function dauertoeneAus() { dauertoene.forEach(d => d.aus()); }
 
-  function ton(name) {
-    if (!tonAn) return;
+  // Rahmen.ton(name, ab): ab = Startpunkt der Aufnahme in Sekunden (optional, z. B. passend zu einer kürzeren Aufladung).
+  // Gibt einen Griff { aus() } zurück, mit dem eine Aufnahme vorzeitig endet (z. B. Aufladen beim Antippen).
+  function ton(name, ab) {
+    const griff = { g: null, weg: false, aus() { this.weg = true; if (this.g) this.g.aus(); } };
+    if (!tonAn) return griff;
     const a = audio();
-    if (!a) return;
-    const spielen = () => { try { if (!spieleClip(name) && TOENE[name]) TOENE[name](); } catch (e) { /* Ton ist Nebensache */ } };
-    if (a.state === 'running') return spielen();
+    if (!a) return griff;
+    const spielen = () => { try { if (griff.weg) return; griff.g = spieleClip(name, ab) || null; if (!griff.g && TOENE[name]) TOENE[name](); } catch (e) { /* Ton ist Nebensache */ } };
+    if (a.state === 'running') { spielen(); return griff; }
     // Direkt nach dem ersten Tippen ist der Ton oft noch nicht freigegeben (z. B. Countdown beim Spielstart):
     // kurz auf die Freigabe warten, aber nicht nachholen, wenn es zu spät ist
     const seit = performance.now();
     a.resume().then(() => { if (a.state === 'running' && performance.now() - seit < 500) spielen(); }).catch(() => {});
+    return griff;
   }
 
   // Vibration bei Fehlern und Unfällen (nur Android; iPhones erlauben es Webseiten nicht – dort passiert einfach nichts)
@@ -322,7 +327,55 @@
     }
     wurzel.setProperty('--titel-farbe', titel);
   }
-  const schirme = zettel ? `
+  // Stil „Prüfprotokoll“ (kunde.js: stil: 'protokoll', Sammlung „entSPANNUNG“, MZ 23.10.2026): gestaltetes Bild bildschirmfüllend
+  // (abgedunkelt), Logo allein auf weißem Schild oben rechts, Texte auf einem Klemmbrett mit Klammer (Kopfzeile „PRÜFPROTOKOLL –
+  // <Bereich>“ bzw. „PRÜFERGEBNIS – <Spiel>“ mit Linie in der Hausfarbe), im Endbild ein schräger Stempel je Bewertung, eine
+  // Humor-Figur am Rand und Knöpfe unten (Hauptknopf in farben.knopf). Gemeinsamer Aufbau mit dem Zettel-Stil (blatt): Bildpause,
+  // Logo-Schild, Knöpfe unten, „⌂ Zum Menü“ – Autohaus (Karte) und „Akten & Action“ (Zettel) bleiben unverändert.
+  const protokoll = K.stil === 'protokoll';
+  const blatt = zettel || protokoll;
+  if (protokoll) {
+    document.documentElement.classList.add('stil-protokoll');
+    wurzel.setProperty('--titel-farbe', farben.titel || farben.dunkel);
+    wurzel.setProperty('--knopf', farben.knopf || farben.haupt);
+    wurzel.setProperty('--knopf-text', textFarbe(farben.knopf || farben.haupt));
+  }
+  const knoepfeStart = `<div class="knoepfe">
+        <button class="knopf" id="losKnopf" type="button">Los geht's</button>
+        ${heim ? `<a class="knopf zweit" href="${heim}">Zum Menü</a>` : ''}
+      </div>`;
+  const knoepfeEnde = `<div class="knoepfe">
+        <button class="knopf" id="extraKnopf" type="button" hidden></button>
+        <a class="knopf" id="kundeKnopf" target="_blank" rel="noopener" hidden></a>
+        <button class="knopf zweit" id="nochmalKnopf" type="button">Nochmal spielen</button>
+        ${heim ? `<a class="knopf zweit" href="${heim}">Zum Menü</a>` : ''}
+      </div>`;
+  const schirme = protokoll ? `
+    <div class="schirm" id="startSchirm">
+      <img class="hintergrund" alt="" hidden><div class="logoebene" aria-hidden="true"></div><div class="abdunkeln" aria-hidden="true"></div>
+      <div class="logoschild"><img class="logo" alt=""></div>
+      <div class="blatt"><div class="klammer" aria-hidden="true"></div><div class="papier">
+        <div class="kopfzeile"><span>Prüfprotokoll</span><span class="bereich"></span></div>
+        <h1 class="titel"></h1><p class="unter"></p><p class="anleitung"></p>
+        <div class="besttafel" hidden><span class="name">Dein Bestwert</span> <span class="zahl"></span></div>
+        <p class="quellen"></p>
+      </div></div>
+      <div class="figurplatz" aria-hidden="true"><img class="figur" alt="" hidden></div>
+      ${knoepfeStart}
+    </div>
+    <div class="schirm" id="endSchirm" hidden>
+      <img class="hintergrund" alt="" hidden><div class="logoebene" aria-hidden="true"></div><div class="abdunkeln" aria-hidden="true"></div>
+      <div class="logoschild"><img class="logo" alt=""></div>
+      <div class="blatt"><div class="klammer" aria-hidden="true"></div><div class="papier">
+        <div class="kopfzeile"><span>Prüfergebnis</span><span class="spielname"></span></div>
+        <p class="dachzeile"></p><div class="bewertung"><h1 class="ueberschrift"></h1><div class="stempel" hidden></div></div><img class="bild" alt="" hidden><div class="wert"></div><p class="vonzeile"></p><p class="bilanzzeile"></p><p class="hinweis"></p>
+        <div class="zeit" hidden>${SYM.uhr}<span></span></div>
+        <div class="felder"></div>
+        <div class="auswertung" hidden><p class="kopf"></p><div class="zeilen"></div></div><p class="text"></p><p class="bestwert"></p>
+      </div></div>
+      <div class="figurplatz" aria-hidden="true"><img class="figur" alt="" hidden></div>
+      ${knoepfeEnde}
+    </div>` : zettel ? `
     <div class="schirm" id="startSchirm">
       <img class="hintergrund" alt="" hidden><div class="logoebene" aria-hidden="true"></div>
       <div class="logoschild"><img class="logo" alt=""></div>
@@ -370,7 +423,7 @@
   document.body.insertAdjacentHTML('beforeend', `
     <canvas id="feld"></canvas>
     <div id="anzeige">
-      ${heim ? `<a id="heimKnopf" href="${heim}" aria-label="Zum Menü">${SYM.heim}${zettel ? '<span class="lang">Zum Menü</span><span class="kurz">Menü</span>' : ''}</a>` : ''}
+      ${heim ? `<a id="heimKnopf" href="${heim}" aria-label="Zum Menü">${SYM.heim}${blatt ? '<span class="lang">Zum Menü</span><span class="kurz">Menü</span>' : ''}</a>` : ''}
       <div class="links"></div><div class="rechts"></div>
       <button id="tonKnopf" type="button" aria-label="Ton an oder aus"></button>
       <button id="vollKnopf" type="button" aria-label="Vollbild"></button>
@@ -378,8 +431,8 @@
 
   const $ = s => document.querySelector(s);
   const feld = $('#feld'), g = feld.getContext('2d');
-  // Zettel-Stil: Logo auf weißem Schild → Logo für helle Flächen
-  const schirmLogo = zettel && K.logoAufHell ? K.logoAufHell : logo.src;
+  // Zettel- und Protokoll-Stil: Logo auf weißem Schild → Logo für helle Flächen
+  const schirmLogo = blatt && K.logoAufHell ? K.logoAufHell : logo.src;
   document.querySelectorAll('.schirm .logo').forEach(i => { i.src = schirmLogo; i.alt = K.firma || ''; });
   // Hintergrundbild für Start- oder Endbild im Zettel-Stil (z. B. umgefärbtes gemaltes Bild als Adresse);
   // position = sichtbarer Bildausschnitt beim Zuschneiden (CSS object-position, z. B. '25% 50%'), Standard Mitte
@@ -643,7 +696,7 @@
     bildpauseEnde();
     schirm.classList.remove('fahrt');
     const hg = schirm.querySelector('.hintergrund');
-    if (!zettel || !hg || ruhig() || (hg.hidden && !aufBildWarten)) return;
+    if (!blatt || !hg || ruhig() || (hg.hidden && !aufBildWarten)) return;
     const p = pause = { schirm, hg, uhr: 0 };
     p.bereit = () => { if (pause !== p) return; clearTimeout(p.uhr); p.uhr = setTimeout(bildpauseEnde, dauer); };
     schirm.classList.add('bildpause', 'fahrt');
@@ -702,6 +755,12 @@
       tz.append(e);
     }
     $('#startSchirm .quellen').textContent = S.quellen || '';
+    if (protokoll) {
+      // Kopfzeile „PRÜFPROTOKOLL – <Bereich>“ (Rahmen.spiel({ bereich })), Hintergrund und Humor-Figur des Spiels
+      $('#startSchirm .bereich').textContent = S.bereich || '';
+      if (S.hintergrund) schirmBild('start', S.hintergrund.bild, S.hintergrund.position);
+      figurSetzen('start', S.figur);
+    }
     $('#startSchirm').hidden = false;
     $('#endSchirm').hidden = true;
   }
@@ -746,8 +805,8 @@
     const zeit = $('#endSchirm .zeit');
     zeit.hidden = !extra.zusatz;
     zeit.querySelector('span').textContent = extra.zusatz || '';
-    if (zettel) {
-      // Zettel: nur die Zahl groß, darunter „von 1.000 Punkten – 84,3s“; Szene als Hintergrund statt im Zettel
+    if (blatt) {
+      // Zettel (und Protokoll, dort danach protokollEnde): nur die Zahl groß, darunter „von 1.000 Punkten – 84,3s“; Szene als Hintergrund statt im Zettel
       bild.hidden = true;
       schirmBild('ende', extra.bild || '', extra.bildPosition);
       if (extra.wert == null) wert.textContent = lz < 0 ? text : text.slice(0, lz);
@@ -758,17 +817,25 @@
       $('#endSchirm .dachzeile').textContent = extra.dach || '';      // kleine Zeile über der Bewertung (z. B. „Level 1 – Fristen“)
       $('#endSchirm .hinweis').textContent = extra.hinweis || '';     // hervorgehobener Hinweis (z. B. „Level 2 freigeschaltet“)
     }
+    if (protokoll) protokollEnde(punkte, extra, neu, alt, wert, text, lz);
     auswertung(extra.auswertung);
     const bw = $('#endSchirm .bestwert');
     // ohne Ausrufezeichen (MZ, 20.10.2026)
     bw.textContent = neu ? (alt == null ? 'Dein erster Bestwert' : 'Neuer Bestwert') : 'Dein Bestwert: ' + zahl(alt == null ? 0 : +alt);
+    if (protokoll) {   // als Zeile des Protokolls: links die Bezeichnung, rechts „854/1.000“
+      const b = neu ? punkte : (alt == null ? 0 : +alt), feld = document.createElement('b');
+      feld.textContent = b.toLocaleString('de-DE') + (S.hoechst ? '/' + S.hoechst.toLocaleString('de-DE') : '');
+      bw.textContent = neu ? (alt == null ? 'Dein erster Bestwert' : 'Neuer Bestwert') : 'Dein Bestwert';
+      bw.append(feld);
+    }
     bw.classList.toggle('neu', neu);
     $('#endSchirm .text').textContent = extra.text || texte.ende || '';
     const kk = $('#kundeKnopf'), kn = K.knopf || {};
     kk.hidden = !kn.link;
     if (kn.link) { kk.href = kn.link; kk.textContent = kn.text || 'Mehr erfahren'; }
     // extra.nochmalZuerst (z. B. bei Abbruch): „Nochmal spielen“ als Hauptknopf ganz oben, Kundenknopf darunter
-    const nk = $('#nochmalKnopf'), zuerst = !!extra.nochmalZuerst;
+    // Protokoll-Stil ohne Kundenknopf: „Nochmal spielen“ ist der Hauptknopf (Vorlage MZ, 23.10.2026)
+    const nk = $('#nochmalKnopf'), zuerst = !!extra.nochmalZuerst || (protokoll && !kn.link);
     if (zuerst) kk.before(nk); else nk.before(kk);
     nk.classList.toggle('zweit', !zuerst);
     kk.classList.toggle('zweit', zuerst);
@@ -786,6 +853,80 @@
       $('#endSchirm').hidden = false;
       if (neu && alt != null) ton('bestwert');
     }, extra.verzoegerung != null ? extra.verzoegerung : 900);
+  }
+
+  // ---------- Prüfprotokoll (nur stil: 'protokoll') ----------
+  // Humor-Figur am Rand. Angabe: Adresse eines freigestellten Bildes oder { bild, blick, hoehe } (leer = keine).
+  // Start: links, kommt kurz ins Bild und bleibt dann am Rand; Ende: rechts (Querformat: rechte Spalte).
+  // blick = wohin die Pose im Bild schaut ('links', 'rechts', 'frontal'); die Figur blickt immer zur Bildmitte (MZ,
+  // 23.10.2026): steht sie links, schaut sie nach rechts, steht sie rechts, nach links – sonst wird sie waagerecht
+  // gespiegelt (gespiegelte Kopie des Bildes, damit die Auftritts-Animation unverändert bleibt). Frontal: nie gespiegelt.
+  // hoehe = Maßstab der Pose gegenüber den anderen (1 = volle Höhe), damit die Person in allen Posen gleich groß ist.
+  function figurSetzen(welcher, angabe) {
+    const f = $((welcher === 'ende' ? '#endSchirm' : '#startSchirm') + ' .figur');
+    if (!f) return;
+    const a = typeof angabe === 'string' ? { bild: angabe } : angabe || {};
+    f.hidden = !a.bild;
+    f.dataset.bild = a.bild || '';
+    f.dataset.blick = a.blick || 'frontal';
+    f.style.setProperty('--figur-f', a.hoehe || 1);
+    if (a.bild) f.src = a.bild; else f.removeAttribute('src');
+    figurAusrichten(f);
+  }
+  const spiegelBilder = new Map();
+  function spiegelBild(adresse) {
+    if (!spiegelBilder.has(adresse)) spiegelBilder.set(adresse, new Promise(ok => {
+      const i = new Image();
+      i.onload = () => {
+        const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight;
+        const x = c.getContext('2d'); x.translate(c.width, 0); x.scale(-1, 1); x.drawImage(i, 0, 0);
+        c.toBlob(b => ok(b ? URL.createObjectURL(b) : adresse), 'image/png');
+      };
+      i.onerror = () => ok(adresse);
+      i.src = adresse;
+    }));
+    return spiegelBilder.get(adresse);
+  }
+  function figurAusrichten(f) {
+    const bild = f.dataset.bild, blick = f.dataset.blick;
+    if (!bild || f.hidden) return;
+    const platz = f.parentNode, schirm = f.closest('.schirm');
+    if (!platz || !schirm || schirm.hidden || !f.offsetWidth) return;   // wird beim Zeigen bzw. nach dem Laden nachgeholt
+    const mitte = platz.getBoundingClientRect().left + f.offsetLeft + f.offsetWidth / 2;
+    const seite = mitte < innerWidth / 2 ? 'links' : 'rechts';
+    const spiegeln = blick !== 'frontal' && blick === seite;
+    f.dataset.seite = seite;
+    if (!spiegeln) { if (f.getAttribute('src') !== bild) f.src = bild; return; }
+    spiegelBild(bild).then(u => { if (f.dataset.bild === bild && f.dataset.seite === seite && f.getAttribute('src') !== u) f.src = u; });
+  }
+  const alleFiguren = () => document.querySelectorAll('.schirm .figur');
+  alleFiguren().forEach(f => f.addEventListener('load', () => figurAusrichten(f)));
+  addEventListener('resize', () => alleFiguren().forEach(figurAusrichten));
+  document.querySelectorAll('.schirm').forEach(s2 => new MutationObserver(() => { if (!s2.hidden) requestAnimationFrame(() => s2.querySelectorAll('.figur').forEach(figurAusrichten)); })
+    .observe(s2, { attributes: true, attributeFilter: ['hidden'] }));
+  // Endbild: Punkte groß mit „/1.000 Punkte“ klein dahinter, Bilanz-Zeilen (extra.felder = [[Bezeichnung, Wert], …]),
+  // schräger Stempel (extra.stempel = { text: 'GEPRÜFT', art: 'gut' | 'mittel' | 'schlecht' }), Figur (extra.figur),
+  // Hintergrund (extra.bild, sonst der des Startbilds), Kopfzeile „PRÜFERGEBNIS – <Spiel>“
+  function protokollEnde(punkte, extra, neu, alt, wert, text, lz) {
+    $('#endSchirm .spielname').textContent = texte.titel || '';
+    if (!extra.bild && S.hintergrund) schirmBild('ende', S.hintergrund.bild, S.hintergrund.position);
+    if (extra.wert == null) {
+      wert.textContent = lz < 0 ? text : text.slice(0, lz);
+      if (S.hoechst) { const e = document.createElement('small'); e.textContent = '/' + zahl(S.hoechst); wert.append(e); }
+    }
+    $('#endSchirm .vonzeile').textContent = extra.wert == null ? extra.zusatz || '' : '';
+    const felder = $('#endSchirm .felder');
+    felder.textContent = '';
+    (extra.felder || []).forEach(([name, w]) => {
+      const z = document.createElement('p'), n = document.createElement('span'), b = document.createElement('b');
+      z.className = 'feld'; n.textContent = name; b.textContent = w;
+      z.append(n, b); felder.append(z);
+    });
+    const st = $('#endSchirm .stempel');
+    st.hidden = !extra.stempel;
+    st.textContent = extra.stempel ? extra.stempel.text : '';
+    st.className = 'stempel' + (extra.stempel ? ' ' + (extra.stempel.art || 'gut') : '');
+    figurSetzen('ende', extra.figur || '');
   }
 
   // Auswertung im Endbild: eine Zeile je Runde mit Balken, die schwächste Runde rot.
@@ -827,7 +968,7 @@
   // zweizeilig übereinander (Klasse eng). Geprüft wird mit dem längsten Punktestand („1.000 Punkte“), damit die
   // Kopfzeile nicht mitten im Spiel umspringt.
   function anzeigeEng() {
-    if (!zettel) return;
+    if (!blatt) return;
     const a = $('#anzeige'), l = $('#anzeige .links'), r = $('#anzeige .rechts'), text = r.textContent;
     if (!l.textContent) { a.classList.remove('eng'); return; }
     a.classList.remove('eng');
@@ -850,8 +991,15 @@
   // ---------- Eingabe ----------
   let finger = null;
   function punkt(e) { const r = feld.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  // Ein Druck, dessen Loslassen verloren ging (z. B. Maus außerhalb des Fensters losgelassen, Fenster verlor den Fokus),
+  // darf die Eingabe nicht dauerhaft sperren (Fangstange, MZ 23.10.2026: „nicht klickbar“): kommt wieder ein Druck desselben
+  // Zeigers oder ein neuer Hauptzeiger (Maus, erster Finger), gilt der alte als beendet. Ein zweiter Finger bleibt ohne
+  // Wirkung wie bisher. Im Prüfprotokoll-Stil zählt bei der Maus nur die linke Taste (Rechtsklick ist dort kein Tipp);
+  // die anderen Stile bleiben dabei wie bisher (Spieltest 23.10.2026).
   feld.addEventListener('pointerdown', e => {
-    if (zustand !== 'spiel' || finger !== null) return;
+    if (zustand !== 'spiel') return;
+    if (protokoll && e.pointerType === 'mouse' && e.button !== 0) return;
+    if (finger !== null && e.pointerId !== finger && !e.isPrimary) return;
     finger = e.pointerId;
     try { feld.setPointerCapture(e.pointerId); } catch (x) { /* egal */ }
     S.runter && S.runter(...punkt(e));
@@ -868,6 +1016,7 @@
   }
   feld.addEventListener('pointerup', los);
   feld.addEventListener('pointercancel', los);
+  feld.addEventListener('lostpointercapture', e => { if (e.pointerId === finger) finger = null; });
 
   // ---------- Schleife ----------
   let zuletzt = performance.now();
@@ -885,7 +1034,7 @@
   window.Rahmen = {
     kunde: K, farben, textFarbe, toenen, mitAlpha, umfaerben,
     zeichneLogo, get logoBereit() { return logoBereit; },
-    ton, dauerton, vibrieren, ende, anzeige, schirmBild, bildFlaechen, zettel,
+    ton, dauerton, vibrieren, ende, anzeige, schirmBild, bildFlaechen, zettel, protokoll,
     get musik() { return startMusikLaeuft ? { laeuft: true, pegel: +startMusikLaeuft.v.gain.value.toFixed(4) } : { laeuft: false }; },   // Testhilfe
     get zustand() { return zustand; },
     // Startbild neu aufbauen (z. B. nach Level-Wahl: anderer Bestwert-Schlüssel S.id, andere Texte)

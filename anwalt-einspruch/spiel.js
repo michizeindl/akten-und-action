@@ -68,7 +68,9 @@
   // vorlaufBeweis (MZ, 22.10.2026): Lesepause bei jeder Aussage mit Beweisstück – erst nur Beweisstück und Etikett (pulsiert
   // leicht), dann der erste Satz. Immer gleich lang (verrät nichts über die Lage des ✗-Satzes). Knopf ist dabei ausgegraut
   // („Lies das Beweisstück“), ein Tipp zählt nicht (MZ, Player-Test 22.10.2026).
-  const DAUER = { titel: 2.5, titelAus: 0.4, auftritt: 0.6, vorlauf: 0.8, vorlaufBeweis: 2.0, einspruch: 0.3,
+  // Ohne Beweisstück keine Wartezeit: der erste Satz kommt gleich nach dem Auftritt; die Sprechblase erscheint erst mit dem
+  // ersten Satz, ohne „…“-Phase (Spielertest 23.10.2026, MZ; vorher vorlauf 0,8s mit „…“).
+  const DAUER = { titel: 2.5, titelAus: 0.4, auftritt: 0.6, vorlauf: 0, vorlaufBeweis: 2.0, einspruch: 0.3,
     stattgegeben: 1.7, abgelehnt: 1.9, uebersehen: 2.9, glaubwuerdig: 1.7, abgang: 0.45, pause: 0.2 };
 
   // Satzdauer nach Länge (Richtwert Supervisor): 1,2s + 0,045s je Zeichen, mindestens 2,0s, höchstens 3,8s; × tempo.
@@ -383,7 +385,8 @@
     wackeln, druck, sprungEnde, titelTon = false, sprungEndeArt = '', gesamtT = 0, vorSatz = -1;
   // Auflösung nach einem Fehler (MZ, 22.10.2026): Zettel mit Erklärung, weiter erst mit „Weiter“ (der Ablauf steht so lange;
   // Punkte hängen nur an der Reaktionszeit im ✗-Satz, die Ø-Zeit im Endbild bleibt unverfälscht). weiterBei = phaseT beim Tippen.
-  const AUFLOESUNG = { ab: 0.55, weiterAb: 0.9, aus: 0.25 };
+  // weiterAb: „Weiter“ gleich mit dem Zettel bedienbar (Spielertest 23.10.2026: vorher 0,35s blass/gesperrt), kurzer Schutz gegen Doppeltipp
+  const AUFLOESUNG = { ab: 0.55, weiterAb: 0.7, aus: 0.25 };
   let aufloesung = null;
 
   function neu() {
@@ -429,7 +432,10 @@
     if (phase === 'titel') {
       if (!titelTon) { titelTon = true; klang('satz'); }
       if (phaseT > DAUER.titel) naechsterZeuge();
-    } else if (phase === 'auftritt' && phaseT > DAUER.auftritt) { phase = 'vorlauf'; phaseT = 0; }
+    } else if (phase === 'auftritt' && phaseT > DAUER.auftritt) {
+      if (aussage.beweis || DAUER.vorlauf > 0) { phase = 'vorlauf'; phaseT = 0; }
+      else { phase = 'rede'; phaseT = 0; satzWeiter(); }   // ohne Beweisstück: erster Satz sofort
+    }
     else if (phase === 'vorlauf' && phaseT > (aussage.beweis ? DAUER.vorlaufBeweis : DAUER.vorlauf)) { phase = 'rede'; phaseT = 0; satzWeiter(); }
     else if (phase === 'rede') {
       satzT += dt;
@@ -970,11 +976,13 @@
   }
   function zeichneBlase(g) {
     const b = L.blase;
+    // Blase erst mit dem ersten Satz (keine „…“-Phase, Spielertest 23.10.2026): springt dann sanft auf
+    if (phase === 'auftritt' || phase === 'vorlauf' || (urteil ? urteil.zeige : satz) < 0) return;
     let alpha = 1, pop = 1;
-    if (phase === 'auftritt') alpha = glatt((phaseT - 0.2) / 0.35);
-    else if (phase === 'abgang') alpha = 1 - phaseT / DAUER.abgang;
-    if (phase === 'rede' && satzT < 0.25 && !RUHIG) pop = 0.985 + 0.015 * glatt(satzT / 0.25);
-    if (phase === 'auftritt' && !RUHIG) pop = 0.92 + 0.08 * glatt((phaseT - 0.2) / 0.4);
+    if (phase === 'abgang') alpha = 1 - phaseT / DAUER.abgang;
+    const erster = phase === 'rede' && satz === 0 && !urteil && !RUHIG;
+    if (erster) { alpha = glatt(satzT / 0.2); pop = 0.92 + 0.08 * glatt(satzT / 0.3); }
+    else if (phase === 'rede' && satzT < 0.25 && !RUHIG) pop = 0.985 + 0.015 * glatt(satzT / 0.25);
     if (alpha <= 0) return;
     // Spitze: Richtung Mund des Zeugen
     const img = BILD[aussage.zeuge], zh = img ? img.height * ZEUGE.faktor : 300;
@@ -1002,16 +1010,6 @@
     g.globalAlpha = alpha;
     const pad = Math.max(12, Math.min(20, b.w * 0.045)), zaehlerH = 16;
     const iw = b.w - 2 * pad, ih = b.h - 2 * pad - zaehlerH * 0.6;
-    if (phase === 'auftritt' || phase === 'vorlauf' || (urteil ? urteil.zeige : satz) < 0) {
-      // drei Punkte: der Zeuge holt Luft
-      for (let i = 0; i < 3; i++) {
-        const a = 0.35 + 0.65 * Math.max(0, Math.sin(performance.now() / 1000 * 6 - i * 0.8));
-        g.globalAlpha = alpha * a; g.fillStyle = BLAUGRAU;
-        g.beginPath(); g.arc(cx - 16 + i * 16, cy, 4.5, 0, Math.PI * 2); g.fill();
-      }
-      g.restore();
-      return;
-    }
     const idx = urteil ? urteil.zeige : satz;
     // Satzwechsel: der vorige Satz blendet kurz aus, der neue ein (gleitet dabei 4 px hoch)
     const wechsel = phase === 'rede' && !urteil && satzT < UEBERBLENDEN;
@@ -1078,14 +1076,15 @@
   }
   function zeichneBlase2(g) {
     const b = L.blase;
+    // Blase erst mit dem ersten Satz (keine „…“-Phase, Spielertest 23.10.2026): springt dann sanft auf
+    if (phase === 'auftritt' || phase === 'vorlauf' || (urteil ? urteil.zeige : satz) < 0) return;
     let alpha = 1, pop = 1;
-    if (phase === 'auftritt') alpha = glatt((phaseT - 0.2) / 0.35);
-    else if (phase === 'abgang') alpha = 1 - phaseT / DAUER.abgang;
-    if (phase === 'rede' && satzT < 0.25 && !RUHIG) pop = 0.985 + 0.015 * glatt(satzT / 0.25);
-    if (phase === 'auftritt' && !RUHIG) pop = 0.92 + 0.08 * glatt((phaseT - 0.2) / 0.4);
+    if (phase === 'abgang') alpha = 1 - phaseT / DAUER.abgang;
+    const erster = phase === 'rede' && satz === 0 && !urteil && !RUHIG;
+    if (erster) { alpha = glatt(satzT / 0.2); pop = 0.92 + 0.08 * glatt(satzT / 0.3); }
+    else if (phase === 'rede' && satzT < 0.25 && !RUHIG) pop = 0.985 + 0.015 * glatt(satzT / 0.25);
     if (alpha <= 0) return;
-    const leer = phase === 'auftritt' || phase === 'vorlauf' || (urteil ? urteil.zeige : satz) < 0;
-    const idx = leer ? 0 : urteil ? urteil.zeige : satz;
+    const idx = urteil ? urteil.zeige : satz;
     const wer = sprecherVon(idx);
     const wechsel = phase === 'rede' && !urteil && satzT < UEBERBLENDEN;
     const ein = wechsel ? glatt(satzT / UEBERBLENDEN) : 1;
@@ -1098,16 +1097,6 @@
     const pad = Math.max(12, Math.min(20, b.w * 0.045)), kopfH = 14;
     const bi = { x: b.x, y: b.y + kopfH * 0.6, w: b.w, h: b.h - kopfH * 0.6 };
     const iw = b.w - 2 * pad, ih = bi.h - 2 * pad;
-    const cx = b.x + b.w / 2, cy = bi.y + bi.h / 2;
-    if (leer) {
-      for (let i = 0; i < 3; i++) {
-        const a = 0.35 + 0.65 * Math.max(0, Math.sin(performance.now() / 1000 * 6 - i * 0.8));
-        g.globalAlpha = alpha * a; g.fillStyle = BLAUGRAU;
-        g.beginPath(); g.arc(cx - 16 + i * 16, cy, 4.5, 0, Math.PI * 2); g.fill();
-      }
-      g.restore();
-      return;
-    }
     if (wechsel && vorSatz >= 0) zeichneSatz(g, aussage.saetze[vorSatz], bi, pad, iw, ih, alpha * (1 - glatt(satzT / (UEBERBLENDEN * 0.7))), 0, null);
     const neuEin = urteil && urteil.zeige !== satz && phase === 'urteil' ? glatt(phaseT / 0.3) : 1;
     zeichneSatz(g, aussage.saetze[idx], bi, pad, iw, ih, alpha * ein * neuEin, RUHIG ? 0 : (1 - ein) * 4, urteil && urteil.markiert);
@@ -1269,9 +1258,9 @@
       g.fillStyle = TEXT; g.font = `700 ${m.ft}px ${SCHRIFT}`;
       m.textZ.forEach((z, i) => g.fillText(z, x0 + p + 11, y0 + o.text + (i + 1) * m.ft * 1.3 - m.ft * 0.3));
     }
-    // „Weiter“ in der Markenfarbe; ab AUFLOESUNG.weiterAb aktiv (vorher blass)
+    // „Weiter“ in der Markenfarbe; erscheint mit dem Zettel (nicht mehr blass), aktiv ab AUFLOESUNG.weiterAb
     const k = { x: x0 + p, y: y0 + o.weiter, w: m.innen, h: m.kh };
-    const hell = RUHIG ? (phaseT >= AUFLOESUNG.weiterAb ? 1 : 0.5) : 0.5 + 0.5 * glatt((phaseT - AUFLOESUNG.weiterAb + 0.2) / 0.2);
+    const hell = 1;
     const d = aufloesung.druck || 0, tief = d > 0 && !RUHIG ? Math.sin(d / 0.24 * Math.PI) : 0;
     g.save();
     g.globalAlpha *= hell;
@@ -1405,7 +1394,11 @@
   function runderKasten(g, x, y, w, h, r) { g.beginPath(); runderPfad(g, x, y, w, h, r); }
 
   // ---------- Testhilfen (für Spieler unsichtbar) ----------
-  // Adresse: #level=2 (Level wählen, auch wenn gesperrt), #zeuge=17 (Aussage Nr. 17 kommt zuerst), #ab=10 (mit dem
+  // Testhilfe Zeitlupe (MZ, 23.10.2026, für den Claude Player): #tempo=0.3 lässt die ganze Spielzeit 0,3× so schnell laufen
+  // (schritt bekommt dt × tempo) – alle Dauern, Fristen und Reaktionszeiten zählen in Spielzeit, die Punkte bleiben damit
+  // vergleichbar. Ohne #tempo genau wie bisher; nichts sichtbar, nichts gespeichert. Erlaubt 0,1–2.
+  const TEMPO_TEST = (() => { const m = /tempo=([\d.]+)/.exec(location.hash), t = m ? +m[1] : 1; return t >= 0.1 && t <= 2 ? t : 1; })();
+  // Adresse: #tempo=0.3 (Zeitlupe: Satzdauer, Lesepause, Antworten und Reaktionszeit-Wertung 0,3× so schnell), #level=2 (Level wählen, auch wenn gesperrt), #zeuge=17 (Aussage Nr. 17 kommt zuerst), #ab=10 (mit dem
   //          10. Zeugen beginnen), #ende=sieg-854 / #ende=verloren / #ende=frei (Beispiel-Endbild nach „Los geht's“).
   // window.__test: Rechenfunktionen und Zustand, z. B. __test.wertung(__test.AUSSAGEN1[0], 2, 0.8), __test.tippe(),
   //                __test.level(2), __test.freischaltungZuruecksetzen(), __test.knopf (Mitte des Knopfs zum echten Tippen).
@@ -1455,7 +1448,7 @@
     // Musik der Sammlung (wie Frist-Alarm): läuft im Startbild und endet mit „Los geht's“
     // läuft auch im Spiel weiter, dort auf 45 % abgesenkt, im Endbild wieder voll (MZ, 22.10.2026; Rahmen-Option imSpiel)
     startMusik: { datei: '../klaenge/musik.mp3', proben: 1281969, pegel: 0.22, imSpiel: 0.45 },
-    neu, schritt, zeichne, runter,
+    neu, schritt: TEMPO_TEST === 1 ? schritt : dt => schritt(dt * TEMPO_TEST), zeichne, runter,
   };
   R_.spiel(DEF);
   const lvHash = /level=(\d)/.exec(location.hash);

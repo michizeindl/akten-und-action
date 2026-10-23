@@ -37,9 +37,9 @@
   // Level (MZ, 22.10.2026): je höchstens 1.000 Punkte, eigener Bestwert, nacheinander freischalten.
   // art: einzeln = eine Person, Uhr springt bei der Pause; abteilung = zwei Personen, Uhr läuft durch
   const LEVEL = [
-    { nr: 1, name: 'Arbeitstag', id: 'stempeluhr', gebaut: true, anleitung: ANLEITUNG1, art: 'einzeln', personen: false, tage: 5, wort: 'Stempeln' },
-    { nr: 2, name: 'Kollegen', id: 'stempeluhr-2', gebaut: true, anleitung: ANLEITUNG2, art: 'einzeln', personen: true, tage: 5, wort: 'Entscheidungen' },
-    { nr: 3, name: 'Abteilung', id: 'stempeluhr-3', gebaut: true, anleitung: ANLEITUNG3, art: 'abteilung', personen: true, tage: 6, wort: 'Entscheidungen' },
+    { nr: 1, name: 'Arbeitstag', id: 'stempeluhr', gebaut: true, anleitung: ANLEITUNG1, art: 'einzeln', personen: false, tage: 5, wort: 'Terminen eingehalten' },
+    { nr: 2, name: 'Kollegen', id: 'stempeluhr-2', gebaut: true, anleitung: ANLEITUNG2, art: 'einzeln', personen: true, tage: 5, wort: 'Entscheidungen korrekt' },
+    { nr: 3, name: 'Abteilung', id: 'stempeluhr-3', gebaut: true, anleitung: ANLEITUNG3, art: 'abteilung', personen: true, tage: 6, wort: 'Entscheidungen korrekt' },
   ];
   let LV = LEVEL[0];
   const FREI_KEY = 'mg:frei:stempeluhr:' + (K.firma || '');
@@ -547,9 +547,10 @@
   // frageRueck = Rückmeldung auf eine Antwort (Zeit steht). Rückmeldungen mit Begründung warten auf „Weiter“ (die Uhr steht),
   // nur Pünktlich/OK laufen nach rueck.* durch (Supervisor, 22.10.2026); weiterAb = „Weiter“ erst ab dann aktiv, zettelAus = Ausblenden
   const DAUER = { titel: 2.5, titelAus: 0.4, tagStart: 1.3, stempeln: 0.58, klack: 0.26, rueck: { beginn: 0.35, pause: 1.5, feierabend: 1.6 },
-    rueck3: { beginn: 0.3, pause: 1.2, feierabend: 1.3 }, frageRueck: 2.2, tagEnde: 0.55, spinVon: 0.15, spinBis: 0.95, weiterAb: 0.6, zettelAus: 0.25 };
+    rueck3: { beginn: 0.3, pause: 1.2, feierabend: 1.3 }, frageRueck: 2.2, tagEnde: 0.55, spinVon: 0.15, spinBis: 0.95, weiterAb: 0.15, zettelAus: 0.25,
+    vorschau: 1.5 };   // weiterAb 0,15s: nur Schutz gegen Doppeltipp (vorher 0,6s, Spielertest 23.10.2026); vorschau: Karte vor Tag 1 lesen
   let woche, tagNr, tag, phase, phaseT, summeAnteil, abzuege, verstoesse, anzahl, korrekt, unnoetig, letzter, aktiv, uhr, uhrAnz, uhrAnim,
-    gewicht, wackeln, rot, druck, frage, sprungEnde, sprungEndeArt = '', M = 1;
+    gewicht, wackeln, rot, druck, frage, sprungEnde, sprungEndeArt = '', M = 1, vorschauOffen = false;
   // Rückmeldungs-Zettel (Frage bzw. Ergebnis eines Stempels) in fester Fläche neben/über der Karte; weiterBei = phaseT beim Tippen auf „Weiter“
   let zettel = null, weiterBei = null;
   function zettelNeu(z) { zettel = z; weiterBei = null; }
@@ -577,6 +578,7 @@
     summeAnteil = 0; abzuege = 0; verstoesse = 0; anzahl = 0; korrekt = 0; unnoetig = 0; letzter = null; aktiv = null; frage = null; zettel = null; weiterBei = null;
     tag = null; uhr = 6; uhrAnz = 6; uhrAnim = null; gewicht = tageszeit(7); wackeln = 0; rot = 0; druck = {};
     phase = 'titel'; phaseT = 0; Lschluessel = '';
+    vorschauOffen = true;   // vor dem ersten Tag des Spiels kurz die Karte zeigen (nur einmal je Spiel)
     anzeigen();
   }
   function punkteRoh() { return Math.round(1000 * (summeAnteil - ABZUG_UNNOETIG * abzuege) / M); }
@@ -610,8 +612,18 @@
     Lschluessel = '';
     anzeigen();
   }
+  // Vorschau vor dem ersten Tag (Spielertest 23.10.2026, MZ): nach dem Level-Titel liegt die Karte ca. 1,5s still da,
+  // darüber ein Notizzettel „Montag – gleich geht's los…“; erst dann läuft die Uhr. Tippen überspringt. Nur am ersten
+  // Tag des Spiels (nicht bei jedem Tag), alle Level; nicht am Sonntag (nur über die Testhilfe #sonntag erreichbar).
   function nachTagStart() {
     uhrAnim = null; uhrAnz = uhr;
+    if (vorschauOffen && !tag.sonntag) { vorschauOffen = false; phase = 'vorschau'; phaseT = 0; return; }
+    vorschauOffen = false;
+    nachVorschau();
+  }
+  function vorschauUeberspringen() { if (phase === 'vorschau') phaseT = Math.max(phaseT, DAUER.vorschau - VORSCHAU_AUS); }
+  const VORSCHAU_AUS = 0.3;
+  function nachVorschau() {
     if (tag.morgen) return frageStellen(tag.morgen, null);
     tagLos();
   }
@@ -654,7 +666,9 @@
         // offene Rückfrage dieser Person endet ohne Antwort
         if (frage && frage.a === a && !frage.antwort) { anzahl++; frage = null; zettel = null; }
       }
-      anzahl++;
+      // Bilanz (Spielertest 23.10.2026): gezählt werden fällige Termine – getippt oder verpasst; eine unnötige Pause
+      // ist kein Termin und steht in der Bilanz extra („1 unnötige Pause“)
+      if (w.ergebnis !== 'unnoetig') anzahl++;
       if (w.ergebnis === 'verstoss') { verstoesse++; rot = 0.6; wackeln = 0.4; R_.vibrieren([80, 60, 80]); }
       else if (w.ergebnis !== 'unnoetig') korrekt++;
     }
@@ -747,6 +761,8 @@
       }
     } else if (phase === 'tagStart') {
       if (phaseT > DAUER.tagStart) nachTagStart();
+    } else if (phase === 'vorschau') {
+      if (phaseT > DAUER.vorschau) nachVorschau();
     } else if (phase === 'frage') {
       frage.t += dt;
       if (frage.t > FRAGE_ZEIT) antworte(null);
@@ -915,12 +931,15 @@
     R_.ende(0, { dach: dach(), ueberschrift: ABBRUCH_TITEL, wert: bilanz(false), bild: endBild('nacht'), bildPosition: SCHIRM_POS, text: '', verzoegerung: 300, nochmalZuerst: true });
   }
   // Bilanz „14 von 15 Stempeln korrekt – 1 Verstoß“ (Level 2/3: „Entscheidungen“ = Stempel und Antworten);
-  // unnötige Pausen zusätzlich genannt; Verlierer zweizeilig
+  // Neu (Spielertest 23.10.2026, Vorschlag Developer): Level 1 „14 von 15 Terminen eingehalten – 1 Verstoß“ – Termine =
+  // fällige Pausen und Feierabende, getippt oder verpasst (verpasst = Verstoß); Level 2/3 „Entscheidungen korrekt“ =
+  // dieselben Termine plus Antworten auf Fragen. Unnötige Pausen sind keine Termine, sie stehen extra dahinter.
+  // Verlierer zweizeilig
   function bilanz(einzeilig, werte) {
     const v = werte || { anzahl, korrekt, verstoesse, unnoetig };
     const vt = v.verstoesse === 0 ? 'kein Verstoß' : v.verstoesse === 1 ? '1 Verstoß' : v.verstoesse + ' Verstöße';
     const ut = v.unnoetig ? ', ' + (v.unnoetig === 1 ? '1 unnötige Pause' : v.unnoetig + ' unnötige Pausen') : '';
-    return `${v.korrekt} von ${v.anzahl} ${LV.wort} korrekt${NBSP}–${einzeilig ? ' ' : '\n'}${vt}${ut}`;
+    return `${v.korrekt} von ${v.anzahl} ${LV.wort}${NBSP}–${einzeilig ? ' ' : '\n'}${vt}${ut}`;
   }
   // Beispiel-Endbilder (#ende=sieg-854, #ende=verloren, #ende=frei) – schreiben wie ein echtes Spiel den Bestwert
   function beispielEnde(art, wert) {
@@ -1163,6 +1182,7 @@
   function runter(x, y) {
     if (!L) return;
     if (phase === 'titel') { phaseT = Math.max(phaseT, DAUER.titel - DAUER.titelAus); return; }   // Tippen überspringt den Titel
+    if (phase === 'vorschau') { vorschauUeberspringen(); return; }                                 // … und die Vorschau
     const zm = zettelMasse();
     if (zm && zm.ja && frage && !frage.ergebnis) {
       if (drin(zm.ja, x, y, 6)) { antworte('ja'); return; }
@@ -1174,7 +1194,7 @@
   addEventListener('keydown', e => {
     if (R_.zustand !== 'spiel' || e.repeat) return;
     const k = e.key.toLowerCase();
-    if (phase === 'titel' && (k === ' ' || k === 'enter' || k === 'p' || k === 'f')) { e.preventDefault(); runter(-1, -1); return; }
+    if ((phase === 'titel' || phase === 'vorschau') && (k === ' ' || k === 'enter' || k === 'p' || k === 'f')) { e.preventDefault(); runter(-1, -1); return; }
     if (frage && !frage.ergebnis && (k === 'j' || k === 'n')) { antworte(k === 'j' ? 'ja' : 'nein'); return; }
     // Rückmeldung mit Begründung: Eingabe, Leertaste oder W = „Weiter“
     if (zettel && zettel.weiter && (k === 'enter' || k === 'w' || e.code === 'Space')) { e.preventDefault(); weiter(); return; }
@@ -1213,6 +1233,7 @@
       r.addColorStop(0, 'rgba(217,72,59,0)'); r.addColorStop(1, `rgba(217,72,59,${a})`);
       g.fillStyle = r; g.fillRect(0, 0, B, H);
     }
+    if (phase === 'vorschau') zeichneVorschau(g, B, H);
     if (phase === 'titel') zeichneLevelTitel(g, B, H);
   }
 
@@ -1338,7 +1359,7 @@
   // Berufsschul-Zusatz auf der Karte (MZ, 23.10.2026): vor der Antwort nur die Unterrichtszeit (verrät die Antwort nicht),
   // danach, was angerechnet wird bzw. „heute frei“
   function schulOffen(a) {
-    return !!a.schulDef && !!tag && !!tag.morgen && tag.morgen.art === 'schule' && (phase === 'tagStart' || (phase === 'frage' && !!frage && !frage.ergebnis));
+    return !!a.schulDef && !!tag && !!tag.morgen && tag.morgen.art === 'schule' && (phase === 'tagStart' || phase === 'vorschau' || (phase === 'frage' && !!frage && !frage.ergebnis));
   }
   function schulZusatz(a, offen) {
     const f = a.schulDef;
@@ -1354,7 +1375,9 @@
     if (!a || a.fertig || a.frei || schulOffen(a)) return '';
     const max = a.P.max - a.schule, pause = a.pausen < a.P.pausen.length ? a.P.pausen[a.pausen][0] : null;
     const pauseText = () => (a.pausen ? (a.pausen + 1) + '. Pause' : 'Pause') + ' bei ' + std(pause);
-    if (a.arbeit > a.plan + VOLL) return pause != null && pause < max ? pauseText() : 'Höchstens ' + std(max);
+    // geplanter Feierabend vorbei (mehr als 15 Min.): das steht jetzt an – nicht eine spätere Pause, die es bei
+    // pünktlichem Feierabend gar nicht bräuchte (Spielertest 23.10.2026: „→ 2. Pause bei 9:00 Std.“ an einem 5:30-Tag)
+    if (a.arbeit > Math.min(a.plan, max) + VOLL) return 'Feierabend überfällig';
     if (pause != null && a.plan > pause) return pauseText();
     return 'Feierabend bei ' + std(Math.min(a.plan, max));
   }
@@ -1424,7 +1447,7 @@
     ty += fs * 1.85;
     g.fillStyle = TEXT; g.font = `800 ${fs * 1.75}px ${SCHRIFT}`;
     // Ruhezeit-Frage offen: Beginn dieser Person bleibt bis zur Antwort offen (verrät sonst die Antwort, QA 22.10.2026)
-    const offen = tag.morgen && tag.morgen.person === a.person && (phase === 'tagStart' || (phase === 'frage' && frage && !frage.ergebnis));
+    const offen = tag.morgen && tag.morgen.person === a.person && (phase === 'tagStart' || phase === 'vorschau' || (phase === 'frage' && frage && !frage.ergebnis));
     const wert = a.frei && !schulFrage ? 'frei' : !a.begonnen && !einzeln() ? (offen ? 'Beginn: ?' : 'ab ' + uhrText(a.beginn) + NBSP + 'Uhr') : std(a.arbeit);
     if (a.warnung && phase === 'lauf') {
       // Warnhinweis vor einer Grenze: Arbeitszeit leuchtet dezent (pulsierender warmer Hintergrund)
@@ -1594,7 +1617,8 @@
       stempelFallen(g, STEMPEL[z.stempel], farbe, x0 + p, sy, m.sh, m.innen * (m.kompakt ? 0.5 : 0.6), t);
       punktePille(g, z.delta, x0 + m.w - p, m.pilleKopf ? y0 + o.kopf - m.kf * 0.35 : o.pille != null ? y0 + o.pille : sy, RUHIG ? 1 : Math.min(1, Math.max(0, (t - 0.25) / 0.2)), pf);
       // Begründung (groß) und Einzelheit, links ein Strich in der Stempelfarbe
-      const ein = RUHIG ? 1 : Math.min(1, Math.max(0, (t - 0.3) / 0.25));
+      // Begründung gleich mit dem Zettel lesbar (Spielertest 23.10.2026: vorher erst ab 0,3s blass eingeblendet)
+      const ein = RUHIG ? 1 : glatt(t / 0.25);
       if (m.grundZ.length) {
         g.save();
         g.globalAlpha *= ein;
@@ -1610,7 +1634,7 @@
       }
     }
     if (z.weiter && m.weiterK) {
-      const k = m.weiterK, hell = RUHIG ? (t >= DAUER.weiterAb ? 1 : 0.5) : 0.5 + 0.5 * weich((t - DAUER.weiterAb + 0.2) / 0.2);
+      const k = m.weiterK, hell = 1;   // erscheint mit dem Zettel, nicht mehr blass (Spielertest 23.10.2026)
       knopf(g, { x: k.x - m.x + x0, y: k.y - m.y + y0, w: k.w, h: k.h }, 'Weiter', F.haupt, F.hauptText || R_.textFarbe(F.haupt), hell, druck.weiter || 0);
     }
     g.restore();
@@ -1666,6 +1690,50 @@
     }
   }
 
+  // Vorschau-Hinweis vor dem ersten Tag: kleiner Notizzettel mit Klebestreifen in der Fläche der Rückmeldungs-Zettel
+  // (nie über den Karten), Text kursiv mit Serifen in Titelfarbe wie die Zettel der Sammlung; gleitet ein, blendet aus
+  function zeichneVorschau(g, B, H) {
+    if (!tag || !L) return;
+    const r = L.rm, t = phaseT, w = Math.min(r.w, 340), text = tag.name + NBSP + "– gleich geht's los…";
+    const rein = RUHIG ? Math.min(1, t / 0.15) : glatt(t / 0.4);
+    const aus = Math.max(0, Math.min(1, (t - (DAUER.vorschau - VORSCHAU_AUS)) / VORSCHAU_AUS));
+    const alpha = Math.min(rein, 1 - aus);
+    if (alpha <= 0) return;
+    const titelFarbe = getComputedStyle(document.documentElement).getPropertyValue('--titel-farbe').trim() || F.haupt;
+    const schrift = f => `italic 700 ${f}px Georgia, "Times New Roman", Times, serif`;
+    // eine Zeile; wird sie dabei kleiner als 17 px (schmale Fläche im flachen Querformat), zweizeilig und größer
+    let fs = Math.min(22, w * 0.075), zeilen = [text];
+    g.save();
+    g.font = schrift(fs);
+    const tw = g.measureText(text).width;
+    if (tw > w - 36) fs *= (w - 36) / tw;
+    if (fs < 17) {
+      zeilen = [tag.name + NBSP + '–', "gleich geht's los…"];
+      g.font = schrift(20);
+      fs = Math.min(20, 20 * (w - 32) / Math.max(...zeilen.map(z => g.measureText(z).width)));
+    }
+    g.font = schrift(fs);
+    const h = fs * (1.7 + 1.2 * zeilen.length);
+    const x = r.x + (r.w - w) / 2, y = r.mitte != null ? begrenzen(r.mitte - h / 2, r.top, r.untenMax - h) : Math.max(r.top, r.unten - h);
+    g.globalAlpha = alpha;
+    g.translate(x + w / 2, y + h / 2 + (RUHIG ? 0 : (1 - rein) * 16 - beschl(aus) * 10)); g.rotate(-0.02);
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 16; g.shadowOffsetY = 6;
+    const pap = g.createLinearGradient(0, -h / 2, 0, h / 2);
+    pap.addColorStop(0, '#fffdf4'); pap.addColorStop(1, '#f4ecd3');
+    g.fillStyle = pap; g.fillRect(-w / 2, -h / 2, w, h);
+    g.restore();
+    const kw = Math.min(90, w * 0.3);   // Klebestreifen
+    g.save(); g.translate(0, -h / 2); g.rotate(0.05);
+    g.fillStyle = 'rgba(248,242,212,.92)'; g.shadowColor = 'rgba(0,0,0,.2)'; g.shadowBlur = 3; g.shadowOffsetY = 1;
+    g.fillRect(-kw / 2, -8, kw, 16);
+    g.shadowColor = 'transparent'; g.strokeStyle = 'rgba(110,98,62,.35)'; g.lineWidth = 1; g.strokeRect(-kw / 2, -8, kw, 16);
+    g.restore();
+    g.fillStyle = titelFarbe; g.textAlign = 'center'; g.textBaseline = 'middle';
+    zeilen.forEach((z, i) => g.fillText(z, 0, fs * 0.12 + (i - (zeilen.length - 1) / 2) * fs * 1.2));
+    g.restore();
+  }
+
   // Level-Titel vor dem Spiel (wie Einspruch!): Notizzettel mit Klebestreifen, „Level 1“ in Titelfarbe, darunter der Name
   function zeichneLevelTitel(g, B, H) {
     const t = phaseT, aus = Math.max(0, (t - (DAUER.titel - DAUER.titelAus)) / DAUER.titelAus);
@@ -1714,7 +1782,11 @@
   function runderKasten(g, x, y, w, h, r) { g.beginPath(); runderPfad(g, x, y, w, h, r); }
 
   // ---------- Testhilfen (für Spieler unsichtbar) ----------
-  // Adresse: #level=N, #tag=3 (mit Mittwoch beginnen), #plan=5,9.5,6.5,8,10 (Level 1: geplante Stunden je Tag),
+  // Testhilfe Zeitlupe (MZ, 23.10.2026, für den Claude Player): #tempo=0.3 lässt die ganze Spielzeit 0,3× so schnell laufen
+  // (schritt bekommt dt × tempo) – alle Dauern, Fristen und Reaktionszeiten zählen in Spielzeit, die Punkte bleiben damit
+  // vergleichbar. Ohne #tempo genau wie bisher; nichts sichtbar, nichts gespeichert. Erlaubt 0,1–2.
+  const TEMPO_TEST = (() => { const m = /tempo=([\d.]+)/.exec(location.hash), t = m ? +m[1] : 1; return t >= 0.1 && t <= 2 ? t : 1; })();
+  // Adresse: #tempo=0.3 (Zeitlupe: 1 Std. = 5s statt 1,5s, Antwortzeit 16,7s statt 5s), #level=N, #tag=3 (mit Mittwoch beginnen), #plan=5,9.5,6.5,8,10 (Level 1: geplante Stunden je Tag),
   //          #frage=N (Level 2: Tag Nr. N aus daten.js zuerst; Level 3: Ruhezeit-Frage Nr. N am Dienstag, Start Dienstag),
   //          #sonntag=N (Level 3: gleich Sonntag mit Frage Nr. N), #schule=N (Berufsschul-Frage Nr. N: Level 2 am ersten Tag,
 //          Level 3 am Dienstag, Start Dienstag), #ende=sieg-854 / #ende=verloren / #ende=frei.
@@ -1772,7 +1844,7 @@
     // Musik der Sammlung (wie Frist-Alarm und Einspruch!): läuft im Startbild und endet mit „Los geht's“
     // läuft auch im Spiel weiter, dort auf 45 % abgesenkt, im Endbild wieder voll (MZ, 22.10.2026; Rahmen-Option imSpiel)
     startMusik: { datei: '../klaenge/musik.mp3', proben: 1281969, pegel: 0.22, imSpiel: 0.45 },
-    neu, schritt, zeichne, runter,
+    neu, schritt: TEMPO_TEST === 1 ? schritt : dt => schritt(dt * TEMPO_TEST), zeichne, runter,
   };
   R_.spiel(DEF);
   const lvHash = /level=(\d)/.exec(location.hash);

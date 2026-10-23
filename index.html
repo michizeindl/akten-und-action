@@ -457,7 +457,7 @@
       }
       et.append(z);
     });
-    document.querySelector('.unter').textContent = 'Dein Gesamt-Bestwert: ' + gesamt.toLocaleString('de-DE') + ' Punkte';
+    document.querySelector('.unter').textContent = 'Dein Punkterekord: ' + gesamt.toLocaleString('de-DE') + ' Punkte';
 
     // Gemalte Akte (#00FF00-Deckel) in die Kundenfarbe umfärben – wie Rahmen.umfaerben in den Spielen
     const bild = new Image();
@@ -1140,7 +1140,7 @@
     addEventListener('keydown', e => { if (siegLaeuft && e.key === 'Escape') siegSchliessen(); });
     // Gesamt-Bestwert antippen: Sieger-Animation wiederholen (ab 8.000 Punkten)
     const unter = document.querySelector('.unter');
-    if (testSieg) unter.textContent = 'Dein Gesamt-Bestwert: ' + siegWert.toLocaleString('de-DE') + ' Punkte';   // Testhilfe #sieg=8234
+    if (testSieg) unter.textContent = 'Dein Punkterekord: ' + siegWert.toLocaleString('de-DE') + ' Punkte';   // Testhilfe #sieg=8234
     if (siegWert >= SIEG_AB) {
       unter.classList.add('siegbar'); unter.setAttribute('role', 'button'); unter.tabIndex = 0;
       unter.setAttribute('aria-label', unter.textContent + ' – Sieger-Animation abspielen');
