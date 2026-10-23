@@ -189,7 +189,22 @@
     img.onload = () => { BILD[name] = faerben ? R_.umfaerben(img) : img; if (fertig) fertig(BILD[name]); };
     img.src = datei;
   }
-  if (R_.zettel) laden('saal', 'bilder/saal.webp', true, c => R_.schirmBild('start', c.toDataURL('image/jpeg', 0.86), '40% 50%'));
+  // Logo auf den Mappen im Start- und Endbild (MZ, 23.10.2026, rahmen.js: bildFlaechen): Deckelecken in Bildpixeln
+  // (hinten-links, hinten-rechts, vorne-rechts, vorne-links), gemessen in den Original-PNGs (Saal 1024×1536 wie saal.webp;
+  // Endbilder = Hälften von einspruch-ende.png, Verlierer ab x 838). verhaeltnis = Breite:Tiefe des Deckels (Saal aus der
+  // Perspektive berechnet, die Endbilder zeigen dieselbe Ringmappe), breite = Logobreite als Anteil der Deckelbreite.
+  // Verlierer: aufgeklappte Mappe, nur die rechte, flach liegende Deckelhälfte (die linke steht schräg und schmal).
+  // ziel = Mitte der Mappe im Startbild, dorthin zoomt die Bildpause.
+  const MAPPEN = {
+    saal: { flaechen: [{ ecken: [[346, 1098], [690, 1133], [598, 1309], [112, 1244]], verhaeltnis: 0.77, breite: 0.66 }], ziel: [444, 1180] },
+    sieg: { flaechen: [{ ecken: [[120, 592], [345, 592], [328, 707], [27, 699]], verhaeltnis: 0.77, breite: 0.66 }] },
+    verloren: { flaechen: [{ ecken: [[217, 562], [388, 606], [476, 719], [249, 668]], verhaeltnis: 0.77, breite: 0.66 }] },
+  };
+  if (R_.zettel) laden('saal', 'bilder/saal.webp', true, c => {
+    const adresse = c.toDataURL('image/jpeg', 0.86);
+    if (R_.bildFlaechen) R_.bildFlaechen(adresse, MAPPEN.saal);
+    R_.schirmBild('start', adresse, '40% 50%');
+  });
   else laden('saal', 'bilder/saal.webp', true);
   // Zeugen nach dem Laden an den Saal angleichen und ihren Schlagschatten vorbereiten (MZ, 22.10.2026)
   ['M60', 'F35', 'M20', 'F75', 'F25', 'M40', 'F55', 'M75', 'M30', 'F40'].forEach(z => laden(z, 'bilder/zeuge-' + z.toLowerCase() + '.webp', false, img => {
@@ -317,7 +332,10 @@
   const BEWEIS = {"NACHT": [2, 2, 163, 250], "UHR": [198, 2, 108, 250], "PARK": [369, 2, 101, 250], "HANDY": [524, 2, 127, 250], "BUS": [703, 2, 105, 250], "NOTIZ": [857, 2, 133, 250], "BON": [38, 256, 92, 250], "KARTE": [201, 256, 102, 250], "KALENDER": [347, 256, 145, 250], "BRIEF": [521, 256, 133, 250], "RECHNUNG": [690, 256, 131, 250], "ATTEST": [859, 256, 129, 250], "KONTO": [10, 510, 147, 250], "TICKET": [205, 510, 93, 250], "ZEITUNG": [358, 510, 123, 250], "MIETVERTRAG": [519, 510, 138, 250], "LIEFERSCHEIN": [695, 510, 121, 250], "STRAFZETTEL": [869, 510, 110, 250], "WOHNUNG": [24, 764, 119, 250], "GARTEN": [196, 764, 112, 250], "BLITZ": [364, 764, 112, 250], "KAMERA": [532, 764, 112, 250], "AUTOTUER": [699, 764, 113, 250], "RISS": [865, 764, 117, 250], "SCHLUESSEL": [22, 1018, 123, 250], "BRILLE": [197, 1018, 110, 250], "SCHIRM": [368, 1018, 104, 250], "SPRAY": [539, 1018, 98, 250], "SCHLOSS": [677, 1018, 158, 250], "LAMPE": [874, 1018, 100, 250], "BAUSTELLE": [21, 1272, 126, 250]};
   const endBildAdresse = {};
   function endBild(name) {
-    if (!endBildAdresse[name] && BILD[name]) endBildAdresse[name] = BILD[name].toDataURL('image/jpeg', 0.86);
+    if (!endBildAdresse[name] && BILD[name]) {
+      endBildAdresse[name] = BILD[name].toDataURL('image/jpeg', 0.86);
+      if (R_.bildFlaechen && MAPPEN[name]) R_.bildFlaechen(endBildAdresse[name], MAPPEN[name]);   // Logo auf der Mappe
+    }
     return endBildAdresse[name];
   }
 

@@ -7,6 +7,9 @@ window.KUNDE = {
   // aus den RGB-PNGs der Kanzlei verkleinert (Original in Anwalt-Game/Material/Logo/)
   logo: 'kunde/logo.png',
   logoAufHell: 'kunde/logo-hell.png',
+  // Logo ganz in Weiß (Vektor), perspektivisch auf die Mappen/Ordner im Start- und Endbild gedruckt (MZ, 23.10.2026);
+  // fehlt es, nimmt das Spiel logo als weiße Silhouette
+  logoWeiss: 'kunde/logo-weiss.svg',
 
   // Farben als Hex-Code: haupt = Markenfarbe (Olivgrün, auch die Aktendeckel), hauptText = Schrift auf der Markenfarbe,
   // akzent = Hervorhebung, dunkel = Hintergrund (Blaugrau abgedunkelt), hell = Schrift.

@@ -235,6 +235,9 @@ canvas#feld { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .stil-zettel #startSchirm, .stil-zettel #endSchirm { padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
 .stil-zettel .hintergrund { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; z-index: -1; }
 .stil-zettel .hintergrund[hidden] { display: none; }
+/* Logo auf Mappen im Bild (rahmen.js: bildFlaechen): eigene Ebene über dem Bild, gleicher Ausschnitt und gleiche Kamerafahrt */
+.stil-zettel .logoebene { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.stil-zettel .logoebene canvas { position: absolute; display: block; }
 .stil-zettel .logoschild {
   grid-area: logo; justify-self: start; padding: 8px 12px; border-radius: 10px; background: #fff;
   box-shadow: 0 4px 14px rgba(0,0,0,.3);
@@ -291,7 +294,7 @@ canvas#feld { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 }
 @keyframes klebeband { from { opacity: 0; transform: rotate(4deg) scaleX(.3); } }
 @keyframes einblenden { from { opacity: 0; } }
-.stil-zettel .schirm:not([hidden]) .hintergrund { animation: einblenden .5s ease-out both; }
+.stil-zettel .schirm:not([hidden]) .hintergrund, .stil-zettel .schirm:not([hidden]) .logoebene { animation: einblenden .5s ease-out both; }
 .stil-zettel .schirm:not([hidden]) .logoschild { animation: einGleiten .4s .05s ease-out both; }
 .stil-zettel .schirm:not([hidden]) .zettel { animation: aufkleben .6s .15s cubic-bezier(.2,.9,.3,1.2) both; }
 .stil-zettel .schirm:not([hidden]) .zettel::before { animation: klebeband .3s .7s ease-out both; }
@@ -393,7 +396,9 @@ canvas#feld { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 /* Bildpause (MZ, 23.10.2026; rahmen.js: bildpause): zuerst nur das gestaltete Bild mit langsamer Kamerafahrt, dann legt sich
    der Zettel hinein, die Knöpfe kommen mit. Unsichtbar statt ausgeblendet, damit sich nichts verschiebt; Tippen überspringt. */
 @keyframes kamerafahrt { from { transform: scale(1); } to { transform: scale(1.05); } }
-.stil-zettel .schirm.fahrt:not([hidden]) .hintergrund { animation: einblenden .6s ease-out both, kamerafahrt 5s cubic-bezier(.3,.15,.35,1) both; }
+.stil-zettel .schirm.fahrt:not([hidden]) .hintergrund, .stil-zettel .schirm.fahrt:not([hidden]) .logoebene { animation: einblenden .6s ease-out both, kamerafahrt 5s cubic-bezier(.3,.15,.35,1) both; }
+/* nach der Fahrt ist der Zoom in die Logo-Zeichnung übernommen (scharf), die Ebene selbst bleibt unvergrößert */
+.stil-zettel .schirm:not([hidden]) .logoebene.gebacken { animation: none; }
 .stil-zettel .schirm.bildpause:not([hidden]) .zettel, .stil-zettel .schirm.bildpause:not([hidden]) .knoepfe { visibility: hidden; }
 .stil-zettel .schirm.bildpause:not([hidden]) .zettel, .stil-zettel .schirm.bildpause:not([hidden]) .zettel::before,
 .stil-zettel .schirm.bildpause:not([hidden]) .knoepfe .knopf { animation: none; }

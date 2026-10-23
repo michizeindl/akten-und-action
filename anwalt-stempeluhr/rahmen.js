@@ -324,7 +324,7 @@
   }
   const schirme = zettel ? `
     <div class="schirm" id="startSchirm">
-      <img class="hintergrund" alt="" hidden>
+      <img class="hintergrund" alt="" hidden><div class="logoebene" aria-hidden="true"></div>
       <div class="logoschild"><img class="logo" alt=""></div>
       <div class="zettel">
         <h1 class="titel"></h1><p class="unter"></p><p class="anleitung"></p>
@@ -337,7 +337,7 @@
       </div>
     </div>
     <div class="schirm" id="endSchirm" hidden>
-      <img class="hintergrund" alt="" hidden>
+      <img class="hintergrund" alt="" hidden><div class="logoebene" aria-hidden="true"></div>
       <div class="logoschild"><img class="logo" alt=""></div>
       <div class="zettel">
         <p class="dachzeile"></p><h1 class="ueberschrift"></h1><img class="bild" alt="" hidden><div class="wert"></div><p class="vonzeile"></p><p class="bilanzzeile"></p><p class="hinweis"></p>
@@ -389,7 +389,242 @@
     b.hidden = !adresse;
     b.style.objectPosition = position || '';
     if (adresse) b.src = adresse; else b.removeAttribute('src');
+    ebeneZeichnen(b.parentNode);
   }
+
+  // ---------- Logo auf Mappen im Bild (nur Zettel-Stil, MZ 23.10.2026) ----------
+  // Das Kundenlogo ganz in Weiß (kunde.js logoWeiss, sonst logo als weiße Silhouette) liegt als eigene, scharfe Ebene
+  // (.logoebene) über dem Hintergrundbild und ist über die vier Ecken einer Fläche perspektivisch eingepasst
+  // (Homographie), als wäre es auf den Mappendeckel gedruckt. Nicht ins Bild eingebrannt (das wurde unscharf): gezeichnet
+  // wird in Gerätepixeln mit 4×4-Überabtastung, das Licht der Fläche wird übernommen (heller/dunkler wie der Deckel),
+  // Deckkraft 0,9. Die Ebene folgt dem Zuschnitt (object-fit: cover, object-position), der Fenstergröße und der
+  // Kamerafahrt der Bildpause (gleiche CSS-Animation; danach wird der Zoom fest in die Zeichnung übernommen, damit
+  // nichts vergrößert und weich wird).
+  // Anmeldung je Bildadresse: Rahmen.bildFlaechen(adresse, { flaechen: [...], ziel: [x, y] }) – vor schirmBild/ende.
+  //   flaeche = { ecken: [hinten-links, hinten-rechts, vorne-rechts, vorne-links] in Pixeln des Bildes,
+  //               verhaeltnis: echtes Seitenverhältnis Breite:Tiefe des Deckels, breite: Logobreite als Anteil der
+  //               Deckelbreite, mitte: [u, v] Logomitte als Anteil (Standard Mitte) }
+  //   Schrift läuft parallel zur Vorderkante (vorne-links → vorne-rechts). Ist das Logo auf dem Schirm schmaler als
+  //   40 CSS-Pixel, entfällt es (zu klein zum Lesen).
+  //   ziel = Bildpunkt, auf den die Kamerafahrt zoomt (transform-origin), sonst Bildmitte.
+  const flaechenListe = new Map();
+  function bildFlaechen(adresse, angaben) {
+    if (!adresse) return;
+    flaechenListe.set(adresse, angaben || null);
+    document.querySelectorAll('.schirm').forEach(s => ebeneZeichnen(s));
+  }
+  const logoWeiss = new Image();
+  let logoWeissRand = null;   // sichtbarer Bereich des Logos als Anteil [x0, y0, x1, y1] (durchsichtiger Rand weg)
+  if (zettel) {
+    logoWeiss.onload = () => {
+      if (!logoWeiss.naturalWidth) return;
+      logoWeissRand = logoRand(logoWeiss);
+      document.querySelectorAll('.schirm').forEach(s => ebeneZeichnen(s, true));
+    };
+    logoWeiss.src = K.logoWeiss || K.logo || 'kunde/logo.svg';
+  }
+  function logoRand(img) {
+    const w = 600, h = Math.max(1, Math.round(w * img.naturalHeight / img.naturalWidth));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      if (d[(j * w + i) * 4 + 3] > 8) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+    }
+    return x1 < 0 ? [0, 0, 1, 1] : [Math.max(0, x0 - 1) / w, Math.max(0, y0 - 1) / h, Math.min(w, x1 + 2) / w, Math.min(h, y1 + 2) / h];
+  }
+  function logoSeite() {   // Höhe : Breite des sichtbaren Logos
+    const r = logoWeissRand;
+    return (r[3] - r[1]) * logoWeiss.naturalHeight / ((r[2] - r[0]) * logoWeiss.naturalWidth);
+  }
+  // Deckkraft des Logos als Raster, breite Pixel breit (Vektorlogo wird dafür in genau dieser Größe gezeichnet)
+  const masken = new Map();
+  function logoMaske(breite) {
+    breite = Math.min(4096, Math.max(64, Math.ceil(breite / 32) * 32));
+    if (masken.has(breite)) return masken.get(breite);
+    const r = logoWeissRand, nw = logoWeiss.naturalWidth, nh = logoWeiss.naturalHeight;
+    const f = breite / ((r[2] - r[0]) * nw), h = Math.max(1, Math.round(breite * logoSeite()));
+    const c = document.createElement('canvas'); c.width = breite; c.height = h;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+    x.drawImage(logoWeiss, -r[0] * nw * f, -r[1] * nh * f, nw * f, nh * f);
+    const d = x.getImageData(0, 0, breite, h).data, a = new Float32Array(breite * h);
+    for (let k = 0; k < a.length; k++) a[k] = d[k * 4 + 3] / 255;
+    const m = { w: breite, h, a };
+    if (masken.size > 8) masken.clear();
+    masken.set(breite, m);
+    return m;
+  }
+  // Helligkeit des Hintergrundbilds (ein Drittel der Auflösung, dadurch leicht geglättet) – für das Licht auf dem Logo
+  const lichtKarten = new WeakMap();
+  function lichtKarte(hg) {
+    let k = lichtKarten.get(hg);
+    if (k && k.src === hg.src) return k;
+    const w = Math.max(1, Math.round(hg.naturalWidth / 3)), h = Math.max(1, Math.round(hg.naturalHeight / 3));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(hg, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h).data, l = new Float32Array(w * h);
+    for (let i = 0; i < l.length; i++) l[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+    k = { src: hg.src, w, h, f: w / hg.naturalWidth, l, ref: new WeakMap() };
+    lichtKarten.set(hg, k);
+    return k;
+  }
+  function lichtWert(k, x, y) {
+    const i = Math.min(k.w - 1, Math.max(0, Math.round(x * k.f))), j = Math.min(k.h - 1, Math.max(0, Math.round(y * k.f)));
+    return k.l[j * k.w + i];
+  }
+  // Bezugshelligkeit eines Deckels: 90-%-Wert seiner Fläche (heller Teil = reines Weiß des Logos)
+  function lichtBezug(k, f) {
+    if (k.ref.has(f)) return k.ref.get(f);
+    const e = f.ecken.map(p => [p[0] * k.f, p[1] * k.f]), werte = [];
+    const innen = (x, y) => { let s = 0; for (let i = 0; i < 4; i++) { const [ax, ay] = e[i], [bx, by] = e[(i + 1) % 4]; const kr = (bx - ax) * (y - ay) - (by - ay) * (x - ax); if (kr !== 0) { if (s && Math.sign(kr) !== s) return false; s = Math.sign(kr); } } return true; };
+    const xs = e.map(p => p[0]), ys = e.map(p => p[1]);
+    for (let j = Math.floor(Math.min(...ys)); j <= Math.ceil(Math.max(...ys)); j++) for (let i = Math.floor(Math.min(...xs)); i <= Math.ceil(Math.max(...xs)); i++) {
+      if (i >= 0 && j >= 0 && i < k.w && j < k.h && innen(i, j)) werte.push(k.l[j * k.w + i]);
+    }
+    werte.sort((a, b) => a - b);
+    const r = werte.length ? Math.max(1, werte[Math.floor(werte.length * 0.9)]) : 128;
+    k.ref.set(f, r);
+    return r;
+  }
+  // Homographie (3×3, zeilenweise) aus vier Punktpaaren von[i] → nach[i]
+  function homographie(von, nach) {
+    const A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = von[i], [u, v] = nach[i];
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+    }
+    for (let c = 0; c < 8; c++) {
+      let p = c;
+      for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+      for (let r = 0; r < 8; r++) {
+        if (r === c) continue;
+        const m = A[r][c] / A[c][c];
+        for (let k = c; k < 8; k++) A[r][k] -= m * A[c][k];
+        b[r] -= m * b[c];
+      }
+    }
+    return b.map((v, i) => v / A[i][i]).concat(1);
+  }
+  function abbilden(h, x, y) { const w = h[6] * x + h[7] * y + h[8]; return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w]; }
+
+  // Ebene eines Schirms neu zeichnen (bei neuem Bild, Größe, Zuschnitt, Ende der Kamerafahrt)
+  function ebeneZeichnen(schirm, immer) {
+    const ebene = schirm && schirm.querySelector && schirm.querySelector('.logoebene'), hg = ebene && schirm.querySelector('.hintergrund');
+    if (!ebene || !hg) return;
+    const B = ebene.clientWidth, H = ebene.clientHeight;
+    if (!B || !H) return;   // Schirm verborgen – gezeichnet wird beim Zeigen (ResizeObserver)
+    const adresse = hg.hidden ? '' : hg.getAttribute('src') || '';
+    const angaben = adresse && hg.complete && hg.naturalWidth ? flaechenListe.get(adresse) : null;
+    if (!angaben) {
+      if (ebene.firstChild) ebene.textContent = '';
+      hg.style.transformOrigin = ebene.style.transformOrigin = '';
+      ebene._stand = null;
+      return;
+    }
+    const iw = hg.naturalWidth, ih = hg.naturalHeight, s = Math.max(B / iw, H / ih);
+    const pos = getComputedStyle(hg).objectPosition.split(' ');
+    const ver = (v, frei) => v && v.endsWith('px') ? parseFloat(v) : frei * (v && v.endsWith('%') ? parseFloat(v) / 100 : 0.5);
+    const ox = ver(pos[0], B - iw * s), oy = ver(pos[1], H - ih * s);
+    // Kamerafahrt zielt auf die Mappe (Ursprung des Zooms), für Bild und Ebene gleich
+    const ursprung = angaben.ziel ? (ox + angaben.ziel[0] * s).toFixed(1) + 'px ' + (oy + angaben.ziel[1] * s).toFixed(1) + 'px' : '';
+    hg.style.transformOrigin = ebene.style.transformOrigin = ursprung;
+    // Kamerafahrt beendet (Klasse gebacken): Zoom des Bildes fest in die Zeichnung übernehmen
+    let z = 1, zx = 0, zy = 0;
+    if (ebene.classList.contains('gebacken')) {
+      const st = getComputedStyle(hg), m = st.transform;
+      if (m && m.startsWith('matrix(')) {
+        const v = m.slice(7, -1).split(',').map(Number), o = st.transformOrigin.split(' ').map(parseFloat);
+        z = v[0]; zx = o[0] * (1 - z) + v[4]; zy = o[1] * (1 - z) + v[5];
+      }
+    }
+    const a = z * s, bx = z * ox + zx, by = z * oy + zy;
+    // Läuft die Kamerafahrt noch (CSS), zählt für „ganz sichtbar“ schon die Lage am Ende der Fahrt
+    const fahrt = schirm.classList.contains('fahrt') && z === 1 && !ruhig() ? {
+      z: FAHRT_ZOOM, ox: angaben.ziel ? ox + angaben.ziel[0] * s : B / 2, oy: angaben.ziel ? oy + angaben.ziel[1] * s : H / 2 } : null;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    const stand = [adresse.length, adresse.slice(-48), B, H, a, bx, by, dpr, !!logoWeissRand, !!fahrt].join('|');
+    if (!immer && ebene._stand === stand) return;
+    ebene._stand = stand;
+    ebene.textContent = '';
+    if (!logoWeissRand) return;
+    const licht = lichtKarte(hg);
+    (angaben.flaechen || []).forEach(f => flaecheZeichnen(ebene, f, a, bx, by, dpr, B, H, licht, fahrt));
+  }
+
+  const FAHRT_ZOOM = 1.05;   // Endgröße der Kamerafahrt (rahmen.css: @keyframes kamerafahrt)
+  function flaecheZeichnen(ebene, f, a, bx, by, dpr, B, H, licht, fahrt) {
+    const D = 1 / (f.verhaeltnis || 1);   // Deckel: Breite 1, Tiefe D
+    const geraet = p => [(a * p[0] + bx) * dpr, (a * p[1] + by) * dpr];   // Bildpixel → Gerätepixel der Ebene
+    const deckel = homographie([[0, 0], [1, 0], [1, D], [0, D]], f.ecken.map(geraet));
+    const lb = f.breite || 0.66, lh = lb * logoSeite(), mitte = f.mitte || [0.5, 0.5];
+    const x0 = mitte[0] - lb / 2, y0 = mitte[1] * D - lh / 2;
+    const q = [[x0, y0], [x0 + lb, y0], [x0 + lb, y0 + lh], [x0, y0 + lh]].map(p => abbilden(deckel, p[0], p[1]));
+    const breitePx = Math.max(Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]), Math.hypot(q[2][0] - q[3][0], q[2][1] - q[3][1]));
+    if (breitePx < 40 * dpr) return;
+    // Nur ganz sichtbare Logos (ein am Bildrand angeschnittenes Logo wirkt wie ein Fehler) – auch am Ende der Kamerafahrt
+    const lagen = [q];
+    if (fahrt) lagen.push(q.map(p => [(fahrt.ox + fahrt.z * (p[0] / dpr - fahrt.ox)) * dpr, (fahrt.oy + fahrt.z * (p[1] / dpr - fahrt.oy)) * dpr]));
+    if (lagen.some(l => l.some(p => p[0] < -1 || p[1] < -1 || p[0] > B * dpr + 1 || p[1] > H * dpr + 1))) return;
+    const xs = q.map(p => p[0]), ys = q.map(p => p[1]);
+    const gx0 = Math.max(0, Math.floor(Math.min(...xs)) - 1), gy0 = Math.max(0, Math.floor(Math.min(...ys)) - 1);
+    const gx1 = Math.min(Math.ceil(B * dpr), Math.ceil(Math.max(...xs)) + 1), gy1 = Math.min(Math.ceil(H * dpr), Math.ceil(Math.max(...ys)) + 1);
+    const bw = gx1 - gx0, bh = gy1 - gy0;
+    if (bw <= 0 || bh <= 0) return;
+    const M = logoMaske(breitePx * 2), mw = M.w, mh = M.h, ma = M.a;
+    const inv = homographie(q, [[0, 0], [1, 0], [1, 1], [0, 1]]);
+    const bezug = lichtBezug(licht, f), deckkraft = f.deckkraft || 0.9, N = 4;
+    const c = document.createElement('canvas');
+    c.width = bw; c.height = bh;
+    Object.assign(c.style, { left: gx0 / dpr + 'px', top: gy0 / dpr + 'px', width: bw / dpr + 'px', height: bh / dpr + 'px' });
+    const g2 = c.getContext('2d'), bild = g2.createImageData(bw, bh), d = bild.data;
+    for (let j = 0; j < bh; j++) {
+      for (let i = 0; i < bw; i++) {
+        let summe = 0;
+        for (let sj = 0; sj < N; sj++) {
+          const Y = gy0 + j + (sj + 0.5) / N;
+          for (let si = 0; si < N; si++) {
+            const X = gx0 + i + (si + 0.5) / N;
+            const w = inv[6] * X + inv[7] * Y + inv[8];
+            const u = (inv[0] * X + inv[1] * Y + inv[2]) / w, v = (inv[3] * X + inv[4] * Y + inv[5]) / w;
+            if (u < 0 || u >= 1 || v < 0 || v >= 1) continue;
+            // bilinear aus der Logo-Maske
+            const mx = u * mw - 0.5, my = v * mh - 0.5, px = Math.floor(mx), py = Math.floor(my), fx = mx - px, fy = my - py;
+            const p00 = px >= 0 && py >= 0 ? ma[py * mw + px] : 0, p10 = px + 1 < mw && py >= 0 ? ma[py * mw + px + 1] : 0;
+            const p01 = px >= 0 && py + 1 < mh ? ma[(py + 1) * mw + px] : 0, p11 = px + 1 < mw && py + 1 < mh ? ma[(py + 1) * mw + px + 1] : 0;
+            summe += (p00 * (1 - fx) + p10 * fx) * (1 - fy) + (p01 * (1 - fx) + p11 * fx) * fy;
+          }
+        }
+        if (summe <= 0) continue;
+        const ix = ((gx0 + i + 0.5) / dpr - bx) / a, iy = ((gy0 + j + 0.5) / dpr - by) / a;
+        const hell = Math.min(1.1, Math.max(0.5, lichtWert(licht, ix, iy) / bezug));
+        const k = (j * bw + i) * 4, ton = Math.min(255, Math.round(245 * hell));
+        d[k] = d[k + 1] = d[k + 2] = ton;
+        d[k + 3] = Math.round(Math.min(1, summe / (N * N)) * deckkraft * 255);
+      }
+    }
+    g2.putImageData(bild, 0, 0);
+    ebene.append(c);
+  }
+  // Neu zeichnen bei Größe/Zeigen (ResizeObserver), Klassenwechsel (Kamerafahrt an/aus), neuem Bild und Ende der Fahrt
+  document.querySelectorAll('.schirm').forEach(schirm => {
+    const ebene = schirm.querySelector('.logoebene'), hg = schirm.querySelector('.hintergrund');
+    if (!ebene || !hg) return;
+    if (window.ResizeObserver) new ResizeObserver(() => ebeneZeichnen(schirm)).observe(ebene);
+    else addEventListener('resize', () => ebeneZeichnen(schirm));
+    new MutationObserver(() => {
+      if (schirm.hidden || !schirm.classList.contains('fahrt')) ebene.classList.remove('gebacken');
+      ebeneZeichnen(schirm);
+    }).observe(schirm, { attributes: true, attributeFilter: ['class', 'hidden'] });
+    ebene.addEventListener('animationend', e => {
+      if (e.animationName !== 'kamerafahrt' || schirm.hidden) return;
+      ebene.classList.add('gebacken');
+      ebeneZeichnen(schirm);
+    });
+    hg.addEventListener('load', () => ebeneZeichnen(schirm));
+  });
 
   // Bildpause (nur Zettel-Stil, MZ 23.10.2026): Start- und Endbild zeigen zuerst nur das gestaltete Bild mit langsamer
   // Kamerafahrt (Start ca. 1,5s, Ende ca. 1s), dann legt sich der Zettel hinein, die Knöpfe kommen mit. Tippen oder eine
@@ -650,7 +885,7 @@
   window.Rahmen = {
     kunde: K, farben, textFarbe, toenen, mitAlpha, umfaerben,
     zeichneLogo, get logoBereit() { return logoBereit; },
-    ton, dauerton, vibrieren, ende, anzeige, schirmBild, zettel,
+    ton, dauerton, vibrieren, ende, anzeige, schirmBild, bildFlaechen, zettel,
     get musik() { return startMusikLaeuft ? { laeuft: true, pegel: +startMusikLaeuft.v.gain.value.toFixed(4) } : { laeuft: false }; },   // Testhilfe
     get zustand() { return zustand; },
     // Startbild neu aufbauen (z. B. nach Level-Wahl: anderer Bestwert-Schlüssel S.id, andere Texte)

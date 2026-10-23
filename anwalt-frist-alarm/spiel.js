@@ -482,7 +482,29 @@
   }
   // Startbild-Hintergrund zuerst (nur im Zettel-Stil der Sammlung sichtbar; index.html lädt es schon vorab).
   // Ausschnitt '25% 50%' hält den Aktenstapel (links, Bildmitte) im Bild.
-  if (R_.zettel) laden('start', 'bilder/start.webp', true, c => R_.schirmBild('start', c.toDataURL('image/jpeg', 0.86), '25% 50%'));
+  // Logo auf den Ordnern im Start- und Endbild (MZ, 23.10.2026, rahmen.js: bildFlaechen): Deckelecken in Bildpixeln
+  // (hinten-links, hinten-rechts, vorne-rechts, vorne-links), gemessen in den Original-PNGs (start.webp = frist-alarm-start.png;
+  // Endbilder = Hälften von frist-alarm-ende.png, Verlierer ab x 838). Ordner mit Rücken links: Breite:Tiefe 0,90,
+  // Logo 74 % der Deckelbreite. Startbild: nur der oberste Ordner (Rücken zu schmal). Sieger: oberster Deckel jedes der
+  // 5 Stapel. Verlierer: nur der große, scharfe Ordner vorn links auf dem Tisch (die anderen liegen schräg im Haufen,
+  // sind zu schmal oder unscharf am Boden). ziel = Mitte des obersten Ordners, dorthin zoomt die Bildpause.
+  const ORDNER = (ecken, breite) => ({ ecken, verhaeltnis: 0.9, breite: breite || 0.74 });
+  const MAPPEN = {
+    start: { flaechen: [ORDNER([[129, 668], [251, 646], [309, 711], [176, 737]])], ziel: [216, 689] },
+    sieg: { flaechen: [
+      ORDNER([[123, 481], [210, 470], [231, 527], [130, 541]]),
+      ORDNER([[234, 467], [315, 457], [349, 509], [254, 522]]),
+      ORDNER([[342, 453], [418, 443], [462, 492], [373, 504]]),
+      ORDNER([[441, 441], [512, 432], [567, 478], [484, 489]]),
+      ORDNER([[537, 429], [608, 421], [665, 462], [588, 475]]),
+    ] },
+    chaos: { flaechen: [ORDNER([[160, 530], [237, 558], [174, 617], [82, 589]])] },
+  };
+  if (R_.zettel) laden('start', 'bilder/start.webp', true, c => {
+    const adresse = c.toDataURL('image/jpeg', 0.86);
+    if (R_.bildFlaechen) R_.bildFlaechen(adresse, MAPPEN.start);
+    R_.schirmBild('start', adresse, '25% 50%');
+  });
   laden('akte', 'bilder/akte.webp', true);
   laden('korb', 'bilder/korb.webp', false);
   laden('tisch', 'bilder/schreibtisch.webp', false);
@@ -579,7 +601,10 @@
   const DECKEL_ANTEIL = 0.94;   // Anteil der Aktenbreite ohne herausragende Blätter
   const endBildAdresse = {};
   function endBild(name) {   // umgefärbtes Bild als Adresse für das Endbild (einmal erzeugt)
-    if (!endBildAdresse[name] && BILD[name]) endBildAdresse[name] = BILD[name].toDataURL('image/jpeg', 0.86);
+    if (!endBildAdresse[name] && BILD[name]) {
+      endBildAdresse[name] = BILD[name].toDataURL('image/jpeg', 0.86);
+      if (R_.bildFlaechen && MAPPEN[name]) R_.bildFlaechen(endBildAdresse[name], MAPPEN[name]);   // Logo auf den Ordnern
+    }
     return endBildAdresse[name];
   }
 
