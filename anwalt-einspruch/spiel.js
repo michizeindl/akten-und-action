@@ -72,9 +72,10 @@
     stattgegeben: 1.7, abgelehnt: 1.9, uebersehen: 2.9, glaubwuerdig: 1.7, abgang: 0.45, pause: 0.2 };
 
   // Satzdauer nach Länge (Richtwert Supervisor): 1,2s + 0,045s je Zeichen, mindestens 2,0s, höchstens 3,8s; × tempo.
-  // Kreuzverhör: Antworten (wer = 'A', 1–6 Wörter) kürzer: 0,9s + 0,04s je Zeichen, 1,2–2,2s (ohne tempo).
+  // Kreuzverhör: Antworten (wer = 'A', 1–6 Wörter) kürzer: 1,3s + 0,04s je Zeichen, 1,6–2,6s (ohne tempo;
+  // MZ 23.10.2026 nach Spielertest +0,4s, vorher 0,9s/1,2–2,2s). Fragen unverändert.
   function satzDauer(text, lv, wer) {
-    const d = wer === 'A' ? Math.max(1.2, Math.min(2.2, 0.9 + 0.04 * text.length))
+    const d = wer === 'A' ? Math.max(1.6, Math.min(2.6, 1.3 + 0.04 * text.length))
       : Math.max(2.0, Math.min(3.8, 1.2 + 0.045 * text.length)) * (lv || LV).tempo;
     return Math.round(d * 100) / 100;
   }
@@ -571,7 +572,15 @@
   function abbruch() {
     phase = 'fertig';
     klang('niederlage');
-    R_.ende(0, { dach: dach(), ueberschrift: 'Einspruch abgelehnt', wert: bilanz(), bild: endBild('verloren'), text: '', verzoegerung: 300, nochmalZuerst: true });
+    R_.ende(0, { dach: dach(), ueberschrift: 'Einspruch abgelehnt', wert: abbruchBilanz(), bild: endBild('verloren'), text: '', verzoegerung: 300, nochmalZuerst: true });
+  }
+  // Abbruch-Bilanz (MZ, 23.10.2026 nach Spielertest): ehrlich, wie weit die Runde kam – nicht „3 von 10“, wenn erst
+  // 6 gespielt wurden. Z. B. „3 Aussagen richtig bewertet –\nEnde bei Zeuge 6 von 10“ (L2: „Befragungen“). Kurz gehalten,
+  // damit die zweite Zeile auch im Hochformat (375 px) nicht umbricht („Runde bei Zeuge 6 von 10 beendet“ brach um).
+  function abbruchBilanz(richtig, zeuge) {
+    const r = richtig != null ? richtig : richtigAnz, z = zeuge != null ? zeuge : Math.min(nr + 1, ANZAHL);
+    const was = LV.anwalt ? (r === 1 ? 'Befragung' : 'Befragungen') : (r === 1 ? 'Aussage' : 'Aussagen');
+    return `${r} ${was} richtig bewertet${NBSP}–\nEnde bei Zeuge${NBSP}${z} von${NBSP}${ANZAHL}`;
   }
   // Bilanz, z. B. „8 von 10 Aussagen richtig bewertet – 2 Fehler“; Verlierer mit Zeilenumbruch nach dem Gedankenstrich
   function bilanz(richtig, f, einzeilig) {
@@ -582,7 +591,7 @@
   // Beispiel-Endbilder (#ende=sieg-854, #ende=verloren, #ende=frei) – schreiben wie ein echtes Spiel den Bestwert
   function beispielEnde(art, wert) {
     phase = 'fertig';
-    if (art === 'verloren') R_.ende(0, { dach: dach(), ueberschrift: 'Einspruch abgelehnt', wert: bilanz(5, 3), bild: endBild('verloren'), text: '', verzoegerung: 0, nochmalZuerst: true });
+    if (art === 'verloren') R_.ende(0, { dach: dach(), ueberschrift: 'Einspruch abgelehnt', wert: abbruchBilanz(5, 8), bild: endBild('verloren'), text: '', verzoegerung: 0, nochmalZuerst: true });
     else {
       // #ende=widersprochen-420: Beispiel mit 2 zu frühen Einsprüchen und 1 übersehenen Widerspruch
       const nx = LV.nr + 1, p = wert ? +wert : 854, f = art === 'frei' && LV.nr < LEVEL.length, w = f || (LV.nr < LEVEL.length && frei() >= nx);
@@ -1384,7 +1393,7 @@
   //                __test.level(2), __test.freischaltungZuruecksetzen(), __test.knopf (Mitte des Knopfs zum echten Tippen).
   window.__test = {
     AUSSAGEN1, AUSSAGEN2, AUSSAGEN3, LEVEL, PUNKTE, ANZAHL, MAX_FEHLER, DAUER, NACH_LETZTEM, NACH_EHRLICH,
-    satzDauer, dauerVon, fenster, punkteFuer, wertung, stufe, auswahl, bilanz, frei, gleichFolge, posenPlan, POSE_X, poseP,
+    satzDauer, dauerVon, fenster, punkteFuer, wertung, stufe, auswahl, bilanz, abbruchBilanz, frei, gleichFolge, posenPlan, POSE_X, poseP,
     get anwalt() { return Object.assign({ posen }, anwalt); },
     get zuletztGezeigt() { return zuletztGezeigt && zuletztGezeigt.nr; },
     tippe: () => einspruch(),

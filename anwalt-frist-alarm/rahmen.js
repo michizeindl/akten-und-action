@@ -391,6 +391,33 @@
     if (adresse) b.src = adresse; else b.removeAttribute('src');
   }
 
+  // Bildpause (nur Zettel-Stil, MZ 23.10.2026): Start- und Endbild zeigen zuerst nur das gestaltete Bild mit langsamer
+  // Kamerafahrt (Start ca. 1,5s, Ende ca. 1s), dann legt sich der Zettel hinein, die Knöpfe kommen mit. Tippen oder eine
+  // Taste überspringt. Start- und Endbild haben die Pause nur einmal je Seitenaufruf (bei „Nochmal“/„Weiter“ startet das
+  // Spiel direkt, weitere Endbilder kommen sofort). Die Pause zählt erst, wenn das Bild da ist (höchstens 2,5s warten). Bei „Bewegung reduzieren“ keine Pause.
+  let pause = null, endPauseGehabt = false;   // Endbild-Pause nur beim ersten Endbild je Seitenaufruf (MZ, 23.10.2026)
+  function ruhig() { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function bildpauseEnde() {
+    if (!pause) return;
+    clearTimeout(pause.uhr);
+    pause.hg.removeEventListener('load', pause.bereit);
+    pause.schirm.classList.remove('bildpause');
+    pause = null;
+  }
+  function bildpause(schirm, dauer, aufBildWarten) {
+    bildpauseEnde();
+    schirm.classList.remove('fahrt');
+    const hg = schirm.querySelector('.hintergrund');
+    if (!zettel || !hg || ruhig() || (hg.hidden && !aufBildWarten)) return;
+    const p = pause = { schirm, hg, uhr: 0 };
+    p.bereit = () => { if (pause !== p) return; clearTimeout(p.uhr); p.uhr = setTimeout(bildpauseEnde, dauer); };
+    schirm.classList.add('bildpause', 'fahrt');
+    if (!hg.hidden && hg.complete && hg.naturalWidth) p.bereit();
+    else { hg.addEventListener('load', p.bereit); p.uhr = setTimeout(bildpauseEnde, 2500); }
+  }
+  document.querySelectorAll('.schirm').forEach(s => s.addEventListener('pointerdown', () => { if (pause && pause.schirm === s) bildpauseEnde(); }));
+  addEventListener('keydown', () => { if (pause && !pause.schirm.hidden) bildpauseEnde(); });
+
   const tonKnopf = $('#tonKnopf');
   function tonSymbol() { tonKnopf.innerHTML = tonAn ? SYM.tonAn : SYM.tonAus; }
   tonKnopf.addEventListener('click', () => {
@@ -445,6 +472,7 @@
   }
 
   function starten() {
+    bildpauseEnde();
     $('#startSchirm').hidden = true;
     $('#endSchirm').hidden = true;
     audio();
@@ -519,6 +547,7 @@
       if (extra.extraKnopf) { kk.classList.add('zweit'); nk.classList.add('zweit'); }
     }
     setTimeout(() => {
+      if (!endPauseGehabt) { endPauseGehabt = true; bildpause($('#endSchirm'), 1000); } else $('#endSchirm').classList.remove('fahrt');
       $('#endSchirm').hidden = false;
       if (neu && alt != null) ton('bestwert');
     }, extra.verzoegerung != null ? extra.verzoegerung : 900);
@@ -641,6 +670,7 @@
       groesse();
       S.neu && S.neu();
       startSchirm();
+      bildpause($('#startSchirm'), 1500, true);
       startMusikAn();   // klappt nur, wenn der Browser Ton schon erlaubt; sonst beim ersten Tippen
       requestAnimationFrame(bild);
     },

@@ -185,6 +185,8 @@ canvas#feld { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 /* Wer weniger Bewegung eingestellt hat, bekommt keine Animationen */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Zettel-Stil: Zettel und Knöpfe nur kurz einblenden (keine Bildpause, kein Zoom) */
+  .stil-zettel .schirm:not([hidden]) .zettel, .stil-zettel .schirm:not([hidden]) .knoepfe { animation: einblenden .25s ease-out both !important; }
 }
 
 /* Hohe Bildschirme (Handy hochkant): Karte höher, mehr Luft zwischen den Teilen */
@@ -388,3 +390,11 @@ canvas#feld { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .stil-zettel #startSchirm .titel { color: var(--titel-farbe, var(--dunkel)); }
 /* Bewertung im Endbild in derselben Markenfarbe wie der Spielname im Startbild (MZ, 22.10.2026) */
 .stil-zettel #endSchirm .ueberschrift { color: var(--titel-farbe, var(--dunkel)); }
+/* Bildpause (MZ, 23.10.2026; rahmen.js: bildpause): zuerst nur das gestaltete Bild mit langsamer Kamerafahrt, dann legt sich
+   der Zettel hinein, die Knöpfe kommen mit. Unsichtbar statt ausgeblendet, damit sich nichts verschiebt; Tippen überspringt. */
+@keyframes kamerafahrt { from { transform: scale(1); } to { transform: scale(1.05); } }
+.stil-zettel .schirm.fahrt:not([hidden]) .hintergrund { animation: einblenden .6s ease-out both, kamerafahrt 5s cubic-bezier(.3,.15,.35,1) both; }
+.stil-zettel .schirm.bildpause:not([hidden]) .zettel, .stil-zettel .schirm.bildpause:not([hidden]) .knoepfe { visibility: hidden; }
+.stil-zettel .schirm.bildpause:not([hidden]) .zettel, .stil-zettel .schirm.bildpause:not([hidden]) .zettel::before,
+.stil-zettel .schirm.bildpause:not([hidden]) .knoepfe .knopf { animation: none; }
+.stil-zettel .schirm.bildpause { cursor: pointer; }

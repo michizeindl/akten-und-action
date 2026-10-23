@@ -13,7 +13,7 @@
 
   // ---------- Inhalte ----------
   // Körbe von links nach rechts. ­ = Trennstelle, falls ein Wort auf schmalen Handys nicht in eine Zeile passt.
-  const KOERBE = ['Heute', 'Morgen', 'Diese Woche', 'Erfordert Rück­sprache', 'Hat Zeit'];
+  const KOERBE = ['Heute', 'Morgen', 'Diese Woche', 'Rück­sprache', 'Hat Zeit'];
   const HEUTE = 0, MORGEN = 1, WOCHE = 2, RUECK = 3, ZEIT = 4;
   // Wortgetreu aus Anwalt-Game/Material/Texte/frist-alarm-akten-entwurf.md (Nr. 1–36 freigegeben 20.10.2026, Nr. 37–100 am 21.10.2026).
   // Die Spalte „Begründung“ wird nicht angezeigt. Vor dem Gedankenstrich steht im Spiel ein geschütztes Leerzeichen.
@@ -386,13 +386,13 @@
   const LEVEL = [
     { nr: 1, name: 'Fristen', id: 'frist-alarm', koerbe: KOERBE, akten: AKTEN,
       tempo: { anfang: 8, ende: 5, teilB: 2 },          // erste Akte 8s, letzte 5s; Teil B +2s Lesezeit
-      anleitung: 'Akten landen auf deinem Schreibtisch. Ab Akte 6 musst du bei manchen Akten die Frist selbst erkennen. Tippe den Korb an, in den die Akte gehört – bevor ihre Uhr abläuft. Je schneller, desto mehr Punkte. Nach drei versäumten Fristen ist das Spiel vorbei. Ab 5 richtigen Akten wird Level 2 freigeschaltet.' },
+      anleitung: 'Akten landen auf deinem Schreibtisch. Ab Akte 6 musst du bei manchen Akten die Frist selbst erkennen. Tippe den Korb an, in den die Akte gehört – bevor ihre Uhr abläuft. Je schneller, desto mehr Punkte. Falscher Korb kostet nur Punkte, drei versäumte Fristen kosten das Spiel. Ab 5 richtigen Akten wird Level 2 freigeschaltet.' },
     { nr: 2, name: 'Rechtsgebiete', id: 'frist-alarm-2', koerbe: KOERBE2, akten: AKTEN2,
       tempo: { anfang: 7, ende: 5, teilB: 0 },          // Richtwert 7s → 5s (Lesen + 7 Körbe)
-      anleitung: 'Tippe das Rechtsgebiet an, zu dem der Fall gehört – bevor die Uhr abläuft. Je schneller, desto mehr Punkte. Nach drei versäumten Fristen ist das Spiel vorbei. Ab 5 richtigen Akten wird Level 3 freigeschaltet.' },
+      anleitung: 'Tippe das Rechtsgebiet an, zu dem der Fall gehört – bevor die Uhr abläuft. Je schneller, desto mehr Punkte. Falscher Korb kostet nur Punkte, drei versäumte Fristen kosten das Spiel. Ab 5 richtigen Akten wird Level 3 freigeschaltet.' },
     { nr: 3, name: 'Vorgehen', id: 'frist-alarm-3', koerbe: KOERBE3, akten: AKTEN3,
       tempo: { anfang: 8, ende: 6, teilB: 0 },          // Richtwert 8s → 6s (Lesen + Nachdenken)
-      anleitung: 'Tippe an, was zu tun ist\u00A0– bevor die Uhr abläuft. Je schneller, desto mehr Punkte. Nach drei versäumten Fristen ist das Spiel vorbei.' },
+      anleitung: 'Tippe an, was zu tun ist\u00A0– bevor die Uhr abläuft. Je schneller, desto mehr Punkte. Falscher Korb kostet nur Punkte, drei versäumte Fristen kosten das Spiel.' },
   ];
   let LV = LEVEL[0];
   const korbName = i => LV.koerbe[i].replace(/­/g, '');

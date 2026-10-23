@@ -659,7 +659,7 @@
       else if (w.ergebnis !== 'unnoetig') korrekt++;
     }
     const s = { art, uhr: jetzt, arbeit: a.arbeit, ergebnis: w ? w.ergebnis : null, anteil: w ? w.anteil : null, grund: w && w.grund || '', detail: w && w.detail || '',
-      delta: 0, erzwungen: !!erzwungen };
+      delta: 0, erzwungen: !!erzwungen, pauseNr: a.pausen };
     s.delta = punkteRoh() - vorher;
     a.stempel.push(s);
     letzter = s; aktiv = a;
@@ -696,9 +696,14 @@
     Lschluessel = '';
   }
   // Rückmeldungs-Zettel zu einem Stempel: Kopf „Montag – Pause 14:11 Uhr“ (Level 2/3: Name der Person), Stempel, Punkte, Begründung
+  // Automatischer Verstoß (Grenze überschritten, nicht getippt; MZ 23.10.2026): klar beschriftet, z. B. „Karim – 2. Pause verpasst – 13:41 Uhr“
+  function stempelName(s) {
+    const was = s.art === 'pause' ? (s.pauseNr ? (s.pauseNr + 1) + '. Pause' : 'Pause') : s.art === 'feierabend' ? 'Feierabend' : 'Eingestempelt';
+    return s.erzwungen ? was + ' verpasst' : was;
+  }
   function zettelStempel(s, a) {
     const wer = LV.personen ? a.P.name : tag.name;
-    zettelNeu({ art: 'stempel', kopf: wer + NBSP + '– ' + (s.art === 'pause' ? 'Pause' : 'Feierabend') + ' ' + uhrText(s.uhr) + NBSP + 'Uhr',
+    zettelNeu({ art: 'stempel', kopf: wer + NBSP + '– ' + stempelName(s) + (s.erzwungen ? NBSP + '– ' : ' ') + uhrText(s.uhr) + NBSP + 'Uhr',
       stempel: s.ergebnis, delta: s.delta, grund: s.grund, detail: s.detail, weiter: !!s.grund, dauer: (einzeln() ? DAUER.rueck : DAUER.rueck3)[s.art] });
   }
   function antworte(antw) {
@@ -1074,7 +1079,7 @@
       const plan1 = g.measureText('Heute geplant: 10:00' + NBSP + 'Std.').width <= R.w - 2 * pad;
       g.font = `600 ${fs * KLEIN.regel}px ${SCHRIFT}`;
       const regelZeilen = regel ? umbrechen(g, regel, R.w - 2 * pad) : [];
-      const info = pad * 0.8 + (plan1 ? 1 : 2) * fs * 1.15 + regelZeilen.length * fs * KLEIN.regelZ + (regel ? fs * 0.25 : 0) + fs * 0.55 + fs * 1.05 + fs * 1.85 + pad * 0.6;
+      const info = pad * 0.8 + (plan1 ? 1 : 2) * fs * 1.15 + regelZeilen.length * fs * KLEIN.regelZ + (regel ? fs * 0.25 : 0) + fs * 0.55 + fs * 1.05 + fs * 1.85 + GRENZE_H * fs + pad * 0.6;
       const unten = fs * 0.8, rest = R.h - kopf - info - unten, zeile = Math.min(fs * 2.7, rest / n);
       m = { fs, pad, kopf, plan1, info, unten, zeile, regelZeilen, zeilenAnz: n };
       if (zeile >= fs * 1.95 || fs <= 7.5) break;
@@ -1341,6 +1346,18 @@
     if (offen) return 'Berufsschule ' + (f.vor ? 'ab ' + uhrText(f.von) : 'bis ' + uhrText(f.bis)) + NBSP + 'Uhr';
     return a.frei ? 'Berufsschule' + NBSP + '– heute frei' : 'Berufsschule zählt ' + stdZahl(a.schule) + NBSP + 'Std.';
   }
+  // Nächste Grenze (MZ, 23.10.2026): was als Nächstes zu stempeln ist und bei welcher Arbeitszeit – groß unter der Arbeitszeit,
+  // getrennt von der kleinen Regelzeile. Pause nur, wenn sie heute nötig ist; wer über den Plan hinaus arbeitet, sieht die
+  // nächste gesetzliche Grenze (Pause bzw. Höchstzeit). Leer: Feierabend gestempelt, freier Tag, Berufsschul-Frage offen.
+  const GRENZE_H = 1.35;   // Zeilenhöhe auf der Karte (× Grundschrift)
+  function naechsteGrenze(a) {
+    if (!a || a.fertig || a.frei || schulOffen(a)) return '';
+    const max = a.P.max - a.schule, pause = a.pausen < a.P.pausen.length ? a.P.pausen[a.pausen][0] : null;
+    const pauseText = () => (a.pausen ? (a.pausen + 1) + '. Pause' : 'Pause') + ' bei ' + std(pause);
+    if (a.arbeit > a.plan + VOLL) return pause != null && pause < max ? pauseText() : 'Höchstens ' + std(max);
+    if (pause != null && a.plan > pause) return pauseText();
+    return 'Feierabend bei ' + std(Math.min(a.plan, max));
+  }
   function regelZeile(a, kurz, offen) {
     const r = (kurz ? a.P.regelKurz : a.P.regel) || '', z = schulZusatz(a, offen);
     return z ? (r ? r + NBSP + '– ' : '') + z : r;
@@ -1419,6 +1436,13 @@
       g.restore();
     }
     g.fillText(wert, pad, ty - fs * 0.15, W - 2 * pad);
+    // nächste Grenze: fett, dunkel, mit kleinem Pfeil davor
+    const grenze = naechsteGrenze(a);
+    if (grenze) {
+      ty += GRENZE_H * fs;
+      g.fillStyle = TEXT; g.font = `800 ${fs * 0.98}px ${SCHRIFT}`;
+      g.fillText('→' + NBSP + grenze, pad, ty - fs * 0.05, W - 2 * pad);
+    } else ty += GRENZE_H * fs;
     // Stempel-Zeilen: oben klein die Art, darunter die Uhrzeit wie gestempelt; rechts der kleine Stempel
     const sichtbar = a.stempel.length - ((phase === 'stempeln' && a === aktiv) ? 1 : 0);
     // nur die letzten Zeilen (kompakte Karte: 2)
@@ -1429,7 +1453,10 @@
       g.save();
       g.globalAlpha *= ein;
       g.fillStyle = BLAUGRAU; g.font = `600 ${fs * KLEIN.zeile}px ${SCHRIFT}`;
-      g.fillText(st.art === 'beginn' ? 'Eingestempelt' : st.art === 'pause' ? 'Pause' : 'Feierabend', pad, zy + m.zeile * 0.42);
+      // getippt: „Pause“/„Feierabend“; automatischer Verstoß: „2. Pause verpasst“ in Rot (endet vor dem kleinen Stempel)
+      if (st.erzwungen) { g.fillStyle = WARNUNG; g.font = `700 ${fs * KLEIN.zeile}px ${SCHRIFT}`; }
+      g.fillText(st.erzwungen ? stempelName(st) : st.art === 'beginn' ? 'Eingestempelt' : st.art === 'pause' ? 'Pause' : 'Feierabend', pad, zy + m.zeile * 0.42,
+        st.erzwungen ? W * 0.5 - pad - 2 : undefined);
       g.fillStyle = '#3a3357'; g.font = `700 ${fs * 0.9}px "Courier New", Courier, monospace`;
       g.fillText(uhrText(st.uhr) + NBSP + 'Uhr', pad, zy + m.zeile * 0.86);
       g.restore();

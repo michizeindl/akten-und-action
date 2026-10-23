@@ -185,14 +185,16 @@
      (bündig bis zum unteren Rand). Oben im Band bleibt nur der Kanzleiname. Die Fassung im Spruch ist mit ihm ausgeblendet –
      Screenreader lesen die Links also nur einmal. Querformat bleibt unverändert. Steht nach den Regeln für flache Fenster. */
   @media (orientation: portrait) {
-    /* obere grüne Fläche niedrig, Kanzleiname etwas größer und mittig (gleicher Abstand oben und unten) */
+    /* obere grüne Fläche niedrig, Kanzleiname etwas größer und mittig (gleicher Abstand oben und unten);
+       beide grünen Flächen gleich hoch (MZ, 23.10.2026): 10 + 22 + 10 = 42px, die untere zusätzlich safe-area */
     .fuss { padding-top: 10px; padding-bottom: 0; gap: 10px; }
-    .spruch.kanzlei { font-size: 17px; line-height: 1.25; }
+    .spruch.kanzlei { font-size: 17px; line-height: 22px; }
     .spruch.spruchtext { display: none; }
     .kontakt { margin-bottom: 0; padding-bottom: 14px; }
     /* Schrift wie bisher unter dem Spruch (12px, fett, unterstrichen, 14px Abstand) – nur die Lage ist neu */
     .rechtliches.nachunten {
-      display: block; align-self: stretch; margin: -10px -18px 0; padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
+      display: flex; align-items: center; justify-content: center; align-self: stretch; margin: -10px -18px 0;
+      height: calc(42px + env(safe-area-inset-bottom)); padding: 0 18px env(safe-area-inset-bottom);
       background: var(--akzent); color: #fff; text-align: center;
     }
   }
@@ -232,7 +234,81 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
+
+  /* ---------- Intro „Die Waage findet ihren Platz“ (MZ, 23.10.2026): ca. 3s Code-Animation beim ersten Öffnen der Sitzung.
+     Grüne Fläche mit App-Icon → Waage hebt sich, schwingt, schwebt in den Logo-Balken an ihren Platz im Logo (Schriftzug
+     blendet ein) → drei Akten fächern auf und fliegen an die Plätze der Spiel-Akten, Grün wechselt zu Holz. Gezeichnet auf
+     #intro (Leinwand über der Seite); die Seite darunter steuert das Skript (Logo-Balken, Logo, Akten), Kärtchen, Band
+     und Messing-Waage folgen danach mit ihren gewohnten Animationen. Tippen überspringt. ---------- */
+  html.intro { overflow: hidden; }
+  html.intro body::before { content: ""; position: fixed; inset: 0; z-index: 29; background: var(--intro-farbe, #fff); }   /* bis die Leinwand steht */
+  html.intro.introLeinwand body::before { display: none; }
+  #intro { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 30; display: block; touch-action: none; cursor: pointer; }
+  html.intro .logobalken, html.intro .spiel, html.nachIntro .logobalken, html.nachIntro .spiel { animation: none; }
+  html.intro .logo, html.intro .spiel { opacity: 0; }
+  html.intro:not(.introKopf) .kopf .karte { opacity: 0; }
+  html.intro .fuss, html.intro .waage, html.nachIntro .fuss, html.nachIntro .waage { animation-delay: 0s; }
+  html.intro:not(.introBand) .fuss, html.intro:not(.introWaage) .waage { animation-play-state: paused; }
+
+  /* ---------- Sieger-Animation (MZ, 23.10.2026): ab 8.000 Punkten Gesamt-Bestwert einmal beim Zurückkommen, danach per
+     Tipp auf den Gesamt-Bestwert. Kanzleihaus abends mit leichter Kamerafahrt, Feuerwerk in Kanzleifarben (Code), dann
+     Notizzettel „Fall gewonnen – auf ganzer Linie“ mit Punkten und „Zur Startseite“. Tippen überspringt. ---------- */
+  #sieg { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #1f2a31; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; gap: 16px; padding: 16px 16px calc(22px + env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  #sieg[hidden] { display: none; }
+  #siegBuehne { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .siegZettel { position: relative; width: min(100%, 360px); margin: 0; padding: 26px 22px 18px; border-radius: 3px; text-align: center;
+    background: linear-gradient(170deg, #fffdf4, #f7efd6); color: #1c252b; transform: rotate(-3deg);
+    box-shadow: 0 16px 30px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.2); opacity: 0; }
+  .siegZettel::before { content: ""; position: absolute; top: -14px; left: 50%; width: 112px; height: 30px; margin-left: -56px;
+    background: rgba(255,255,255,.6); border: 1px solid rgba(0,0,0,.05); box-shadow: 0 1px 3px rgba(0,0,0,.18); transform: rotate(4deg); }
+  .siegZettel h2 { margin: 0 0 10px; font-family: Georgia, "Times New Roman", Times, serif; font-style: italic; font-weight: 700;
+    font-size: clamp(26px, 7.6vw, 34px); line-height: 1.12; color: var(--titel-farbe, #475e6c); }
+  .siegZettel p { margin: 0; font-size: clamp(16px, 4.6vw, 19px); font-weight: 800; line-height: 1.3; }
+  /* Punkte + Nachsatz: Punkte in eigener Zeile, Nachsatz darunter ausgewogen umbrochen (kein einzelnes Wort allein) */
+  .siegZettel p .zahlTeil, .siegZettel p .nachsatz { display: block; text-wrap: balance; }
+  .siegKnopf { position: relative; width: min(100%, 360px); padding: 14px 20px; border: 0; border-radius: 12px; cursor: pointer;
+    background: var(--haupt); color: var(--haupt-text); font: inherit; font-size: 18px; font-weight: 800;
+    box-shadow: 0 6px 16px rgba(0,0,0,.4); opacity: 0; transition: transform .15s; }
+  .siegKnopf:hover { transform: translateY(-2px); }
+  .siegKnopf:active { transform: scale(.98); }
+  #sieg.zettelDa .siegZettel { animation: siegAufkleben .6s cubic-bezier(.2,.9,.3,1.2) both; }
+  #sieg.zettelDa .siegZettel::before { animation: siegKlebeband .3s .55s ease-out both; }
+  #sieg.zettelDa .siegKnopf { animation: siegKnopfRein .45s .35s ease-out both; }
+  @keyframes siegAufkleben { 0% { opacity: 0; transform: translateY(-36px) rotate(-10deg) scale(1.08); }
+    60% { opacity: 1; transform: translateY(4px) rotate(-2deg) scale(.99); } 100% { opacity: 1; transform: rotate(-3deg); } }
+  @keyframes siegKlebeband { from { opacity: 0; transform: rotate(4deg) scaleX(.3); } }
+  @keyframes siegKnopfRein { from { opacity: 0; translate: 0 14px; } to { opacity: 1; } }
+  /* Querformat: Zettel und Knopf links unten, Haus und Schild mit Logo bleiben sichtbar; flach etwas kleiner */
+  @media (orientation: landscape) {
+    #sieg { align-items: flex-start; padding: 16px 24px calc(24px + env(safe-area-inset-bottom)) max(5vw, env(safe-area-inset-left)); }
+    .siegZettel, .siegKnopf { width: min(42vw, 380px); }
+  }
+  @media (orientation: landscape) and (max-height: 520px) {
+    #sieg { gap: 10px; padding: 12px 20px calc(14px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+    .siegZettel, .siegKnopf { width: min(46vw, 340px); }
+    .siegZettel { padding: 20px 18px 14px; }
+    .siegZettel h2 { font-size: 24px; margin-bottom: 6px; }
+    .siegKnopf { padding: 11px 18px; font-size: 17px; }
+  }
+  .unter.siegbar { cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) { .siegZettel, .siegKnopf { opacity: 1; } }
 </style>
+<!-- Kundendaten früh laden: das Intro braucht die Kundenfarbe schon vor dem ersten Bild -->
+<script src="kunde/kunde.js"></script>
+<script>
+  // Intro nur beim ersten Öffnen in dieser Sitzung (sessionStorage, Präfix mg:); Testhilfe #intro bzw. #intro=1.4 (Standbild)
+  (function () {
+    const K = window.KUNDE || {}, h = location.hash;
+    let gesehen = false;
+    try { gesehen = sessionStorage.getItem('mg:intro:' + (K.firma || '')) === '1'; } catch (e) { /* privat */ }
+    if (/(^#|&)intro(?![a-z])/.test(h) || !gesehen) {
+      document.documentElement.classList.add('intro');
+      document.documentElement.style.setProperty('--intro-farbe', (K.farben && K.farben.haupt) || '#475e6c');
+    }
+  })();
+</script>
 </head>
 <body>
 <div class="logobalken"><img class="logo" alt=""></div>
@@ -274,8 +350,12 @@
   <div class="kontakt"></div>
 </footer>
 <button id="tonKnopf" type="button" aria-label="Ton an oder aus"></button>
+<div id="sieg" hidden role="dialog" aria-modal="true" aria-label="Fall gewonnen">
+  <canvas id="siegBuehne" aria-hidden="true"></canvas>
+  <div class="siegZettel"><h2>Fall gewonnen&nbsp;– <span style="white-space: nowrap">auf ganzer Linie</span></h2><p class="siegPunkte"></p></div>
+  <button class="siegKnopf" type="button">Zur Startseite</button>
+</div>
 
-<script src="kunde/kunde.js"></script>
 <script>
   // Farben, Logo und Texte aus kunde/kunde.js übernehmen; Bestwerte aus den Spielen anzeigen
   (function () {
@@ -513,10 +593,10 @@
     // – Ruhe: alle 4–6s ein kleiner Wackler (±2°, minimal größer)
     // – Antippen: hebt sich an, kippt weiter und federt zurück (Darüberfahren: CSS)
     // Weniger Bewegung gewünscht: nur weich einblenden, kein Wackeln.
-    function kopfAnimieren() {
+    function kopfAnimieren(verz) {
       const karte = kopf.querySelector('.karte'), staub = kopf.querySelector('.staub');
       if (!karte.animate) return;
-      const VERZ = 300, DAUER = 1050;
+      const VERZ = verz != null ? verz : 300, DAUER = 1050;
       if (ruhig) { karte.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: VERZ, fill: 'backwards' }); return; }
       // Startpunkt oben rechts außerhalb des Bildes, umgerechnet in die Lage des Kärtchens (gedreht, skaliert)
       const r = kopf.getBoundingClientRect(), B = document.documentElement.clientWidth;
@@ -561,7 +641,8 @@
     document.querySelector('.logo').addEventListener('load', neuPlatzieren);
     kopfPlatzieren();
     platzieren();
-    kopfAnimieren();
+    const mitIntro = document.documentElement.classList.contains('intro');
+    if (!mitIntro) kopfAnimieren();   // mit Intro: startet das Intro das Kärtchen (siehe unten)
     let zuletzt = performance.now();
     function malen(jetzt) {
       const dt = Math.min(0.05, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
@@ -594,7 +675,8 @@
     }
     requestAnimationFrame(malen);
     // beim Einblenden (ab ca. 0,9s) einmal sanft einpendeln
-    if (!ruhig) setTimeout(() => { waage.v += 0.9; }, 950);
+    const waageEinpendeln = verz => { if (!ruhig) setTimeout(() => { waage.v += 0.9; }, verz); };
+    if (!mitIntro) waageEinpendeln(950);
     window.__waage = { get winkelGrad() { return +(waage.w * 180 / Math.PI).toFixed(1); }, get groesse() { return Math.round(groesse); }, kippen: () => waage.kippen() };   // Testhilfe
 
     // Musik der Sammlung (MZ, 22.10.2026, ersetzt „Office Piano“): Pixabay „Upbeat Business“ von AtlasAudio, nahtlose
@@ -652,6 +734,432 @@
       symbol();
       if (tonAn) an(); else aus();
     });
+
+    // ---------- Hilfen für Intro und Sieger-Animation ----------
+    const klemme = (v, a, b) => Math.min(b, Math.max(a, v));
+    const anteil = (t, a, b) => klemme((t - a) / (b - a), 0, 1);
+    const weich = p => p * p * (3 - 2 * p);
+    const rausK = p => 1 - Math.pow(1 - p, 3);
+    const misch = (a, b, p) => a + (b - a) * p;
+    const wurzelKl = document.documentElement.classList;
+    const testIntro = /(?:^#|&)intro(?:=([\d.]+))?(?:&|$)/.exec(location.hash);
+    const testSieg = /(?:^#|&)sieg=(\d+)/.exec(location.hash);
+    const ladeBild = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+
+    // ---------- Intro „Die Waage findet ihren Platz“ (MZ, 23.10.2026) ----------
+    // Waage im Logo (kunde/logo-hell.png, 720 × 298 px): Schalen, Balken und Säule = alle grünen Pixel im Rechteck
+    // x 202–482, y 0–230 (darunter beginnt „Rechtsanwälte“). Bei einem anderen Logo hier anpassen.
+    const LOGO_WAAGE = { x0: 202, y0: 0, x1: 482, y1: 230, b: 720, h: 298 };
+    // App-Icon (icons/icon-512.png) in 512er Einheiten: Waage (gleiche Form wie im Logo, weiß) und drei flache Akten
+    // (weiße Linie, Mittellinie des Strichs, Strich 4, Ecken 4) – im Intro nachgebaut, damit die Teile sich lösen können
+    const ICON = { waage: [136, 110, 376, 306], akten: [[154, 310, 357, 333], [167, 342, 364, 365], [144, 374, 354, 397]], strich: 4, rund: 4 };
+    // Zeitplan in Sekunden
+    const IZ = { icon: [0, 0.35], kachelAus: [0.35, 0.6], heben: [0.5, 1.05], balken: [0.75, 1.2], flug: [1.05, 1.75], farbe: [1.3, 1.7],
+      landen: 1.75, schrift: [1.75, 2.15], faechern: [1.45, 1.8], aktenFlug: [1.8, 2.45], aktenEin: 2.35, gruenAus: [1.95, 2.7],
+      kopf: 1.95, band: 2.2, waage: 2.35, ende: 3.0 };
+    function introBeenden() {
+      wurzelKl.remove('intro', 'introLeinwand', 'introKopf', 'introBand', 'introWaage');
+      wurzelKl.add('nachIntro');
+      try { sessionStorage.setItem('mg:intro:' + (K.firma || ''), '1'); } catch (e) { /* privat */ }
+    }
+    function introStarten(fertig) {
+      if (!wurzelKl.contains('intro')) { fertig(); return; }
+      const stand = testIntro && testIntro[1] != null ? parseFloat(testIntro[1]) : null;
+      const balken = document.querySelector('.logobalken'), akten = [...document.querySelectorAll('.spiele .spiel')];
+      // Waage aus dem Logo ausschneiden (grün wie im Logo und weiß wie im Icon)
+      ladeBild(K.logoAufHell || K.logo || 'kunde/logo.png').then(lb => {
+        if (!lb || !lb.naturalWidth) { introBeenden(); fertig(); return; }
+        const fx = lb.naturalWidth / LOGO_WAAGE.b, fy = lb.naturalHeight / LOGO_WAAGE.h;
+        const sx = Math.round(LOGO_WAAGE.x0 * fx), sy = Math.round(LOGO_WAAGE.y0 * fy), sw = Math.round((LOGO_WAAGE.x1 - LOGO_WAAGE.x0) * fx), sh = Math.round((LOGO_WAAGE.y1 - LOGO_WAAGE.y0) * fy);
+        const gruen = document.createElement('canvas'); gruen.width = sw; gruen.height = sh;
+        const gg = gruen.getContext('2d'); gg.drawImage(lb, sx, sy, sw, sh, 0, 0, sw, sh);
+        const d = gg.getImageData(0, 0, sw, sh), p = d.data;
+        for (let i = 0; i < p.length; i += 4) if (!(p[i + 1] > p[i + 2] + 50 && p[i] > p[i + 2] + 40)) p[i + 3] = 0;   // nur Grün
+        gg.putImageData(d, 0, 0);
+        const weiss = document.createElement('canvas'); weiss.width = sw; weiss.height = sh;
+        const wg = weiss.getContext('2d'); wg.drawImage(gruen, 0, 0); wg.globalCompositeOperation = 'source-in'; wg.fillStyle = '#fff'; wg.fillRect(0, 0, sw, sh);
+        abspielen(gruen, weiss);
+      });
+      function abspielen(gruen, weiss) {
+        const lw = document.createElement('canvas');
+        lw.id = 'intro'; lw.setAttribute('aria-hidden', 'true');
+        document.body.append(lw);
+        const g = lw.getContext('2d');
+        let start = performance.now(), skip = null, fertigGemeldet = false;
+        const gesetzt = {};   // Klassen/Animationen, die schon gestartet sind
+        function stufe(name, t, bei, tun) { if (!gesetzt[name] && t >= bei) { gesetzt[name] = true; tun(); } }
+        // Lage der Spiel-Akten ohne Drehung: Mitte aus dem (gedrehten) Rahmen, Größe aus offsetWidth/-Height, Drehung aus --dreh
+        const akteLage = a => { const r = a.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: a.offsetWidth, h: a.offsetHeight,
+          dreh: (parseFloat(getComputedStyle(a).getPropertyValue('--dreh')) || 0) * Math.PI / 180 }; };
+        function seiteStellen(t) {
+          // Logo-Balken gleitet herein, Logo-Schriftzug blendet ein, Akten erscheinen beim Ankommen der gezeichneten Akten
+          const pb = ruhig ? 1 : rausK(anteil(t, IZ.balken[0], IZ.balken[1]));
+          balken.style.translate = `0 ${(-105 * (1 - pb)).toFixed(2)}%`;
+          logo.style.opacity = ruhig ? 1 : anteil(t, IZ.schrift[0], IZ.schrift[1]);
+          akten.forEach((a, i) => { a.style.opacity = ruhig ? 1 : anteil(t, IZ.aktenEin + i * 0.07, IZ.aktenEin + i * 0.07 + 0.3); });
+          stufe('kopf', t, ruhig ? 0 : IZ.kopf, () => { wurzelKl.add('introKopf'); kopfAnimieren(0); });
+          stufe('band', t, ruhig ? 0 : IZ.band, () => wurzelKl.add('introBand'));
+          stufe('waage', t, ruhig ? 0 : IZ.waage, () => { wurzelKl.add('introWaage'); waageEinpendeln(900); });
+        }
+        function zeichnen(t) {
+          const B = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2.5);
+          if (lw.width !== Math.round(B * dpr) || lw.height !== Math.round(H * dpr)) { lw.width = Math.round(B * dpr); lw.height = Math.round(H * dpr); }
+          g.setTransform(dpr, 0, 0, dpr, 0, 0);
+          g.clearRect(0, 0, B, H);
+          // grüne Fläche, darin ein Loch für den weißen Logo-Balken (mit seinem Schatten)
+          const gruenA = ruhig ? 1 - anteil(t, 0.5, 1) : 1 - weich(anteil(t, IZ.gruenAus[0], IZ.gruenAus[1]));
+          const br = balken.getBoundingClientRect();
+          if (gruenA > 0) {
+            g.save(); g.globalAlpha = gruenA; g.fillStyle = F.haupt; g.fillRect(0, 0, B, H);
+            if (br.bottom > 0) {
+              g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 14; g.shadowOffsetY = 4; g.fillStyle = '#fff'; g.fillRect(br.left, br.top - 20, br.width, br.height + 20);
+              g.shadowColor = 'transparent'; g.clearRect(br.left, br.top - 20, br.width, br.height + 20);
+            }
+            g.restore();
+          }
+          if (ruhig) {   // weniger Bewegung: nur das Icon, das mit dem Grün ausblendet
+            if (gruenA > 0) iconZeichnen(1, gruenA, 0);
+            return;
+          }
+          // App-Icon: Kachel (gleiches Grün, nur Schatten) erscheint und löst sich auf
+          const S = klemme(Math.min(B, H) * 0.44, 140, 270), cx = B / 2, cy = H * 0.5;
+          const ein = rausK(anteil(t, IZ.icon[0], IZ.icon[1])), kachel = 1 - anteil(t, IZ.kachelAus[0], IZ.kachelAus[1]);
+          const sk = 0.86 + 0.14 * ein;
+          if (kachel > 0) {
+            g.save(); g.globalAlpha = ein * kachel; g.translate(cx, cy); g.scale(sk, sk);
+            g.shadowColor = 'rgba(0,0,0,.32)'; g.shadowBlur = S * 0.08; g.shadowOffsetY = S * 0.03;
+            g.fillStyle = F.haupt; runderPfad(g, -S / 2, -S / 2, S, S, S * 0.22); g.fill();
+            g.restore();
+          }
+          const u = S / 512 * sk, ox = cx - 256 * u, oy = cy - 256 * u;   // Icon-Einheiten → Bildschirm
+          // Waage: Lage im Icon → gehoben und schwingend → Flug in den Logo-Balken → Platz im Logo
+          const iw = ICON.waage, w0 = (iw[2] - iw[0]) * u, h0 = w0 * gruen.height / gruen.width;
+          const x0 = ox + (iw[0] + iw[2]) / 2 * u, y0 = oy + iw[1] * u;   // Mitte oben (Aufhängung)
+          const lr = logo.getBoundingClientRect();
+          const zw = (LOGO_WAAGE.x1 - LOGO_WAAGE.x0) / LOGO_WAAGE.b * lr.width;
+          const zx = lr.left + (LOGO_WAAGE.x0 + LOGO_WAAGE.x1) / 2 / LOGO_WAAGE.b * lr.width, zy = lr.top + LOGO_WAAGE.y0 / LOGO_WAAGE.h * lr.height;
+          const heb = rausK(anteil(t, IZ.heben[0], IZ.heben[1])), hy = y0 - heb * S * 0.2;
+          const ts = t - IZ.heben[0], schwing = ts > 0 ? 0.13 * Math.sin(ts * Math.PI * 2 / 0.75) * Math.exp(-ts * 2.2) : 0;
+          const pf = weich(anteil(t, IZ.flug[0], IZ.flug[1]));
+          // leichter Bogen zur Seite (nie über den oberen Rand hinaus)
+          const kx = (x0 + zx) / 2 - S * 0.35, ky = (hy + zy) / 2;
+          const bx = (1 - pf) * (1 - pf) * x0 + 2 * (1 - pf) * pf * kx + pf * pf * zx, by = (1 - pf) * (1 - pf) * hy + 2 * (1 - pf) * pf * ky + pf * pf * zy;
+          const ww = misch(w0, zw, pf), wh = ww * gruen.height / gruen.width;
+          const lt = t - IZ.landen, quetsch = lt > 0 && lt < 0.3 ? 0.06 * Math.sin(lt / 0.3 * Math.PI) : 0;
+          const farbe = weich(anteil(t, IZ.farbe[0], IZ.farbe[1]));
+          const waageA = ein * (1 - anteil(t, IZ.schrift[1], IZ.schrift[1] + 0.05));
+          if (waageA > 0) {
+            g.save(); g.globalAlpha = waageA; g.translate(bx, by); g.rotate(schwing * (1 - pf)); g.scale(1 + quetsch * 0.5, 1 - quetsch);
+            if (farbe < 1) g.drawImage(weiss, -ww / 2, 0, ww, wh);
+            if (farbe > 0) { g.globalAlpha = waageA * farbe; g.drawImage(gruen, -ww / 2, 0, ww, wh); }
+            g.restore();
+          }
+          // Akten: liegen im Icon, fächern auf, fliegen an die Plätze der Spiel-Akten und blenden dort aus
+          const pfa = weich(anteil(t, IZ.faechern[0], IZ.faechern[1]));
+          ICON.akten.forEach((r, i) => {
+            const dl = i * 0.07, pa = weich(anteil(t, IZ.aktenFlug[0] + dl, IZ.aktenFlug[1] + dl));
+            const aus = 1 - anteil(t, IZ.aktenFlug[1] + dl - 0.05, IZ.aktenFlug[1] + dl + 0.2);
+            if (aus <= 0) return;
+            const ziel = akteLage(akten[i]);
+            const ax = ox + (r[0] + r[2]) / 2 * u, ay = oy + (r[1] + r[3]) / 2 * u, aw = (r[2] - r[0]) * u, ah = (r[3] - r[1]) * u;
+            // Fächer: äußere Akten drehen sich auseinander, die mittlere hebt sich leicht
+            const fd = [-0.32, 0, 0.32][i] * pfa, fxv = [-0.16, 0, 0.16][i] * S * pfa, fyv = [0.04, -0.06, 0.1][i] * S * pfa;
+            const sx = ax + fxv, sy = ay + fyv;
+            const mx = misch(sx, ziel.x, pa), my = misch(sy, ziel.y, pa) - Math.sin(pa * Math.PI) * S * 0.12;
+            const mw = misch(aw, ziel.w, pa), mh = misch(ah, ziel.h, pa), md = misch(fd, ziel.dreh, pa);
+            g.save(); g.globalAlpha = ein * aus; g.translate(mx, my); g.rotate(md);
+            g.strokeStyle = '#fff'; g.lineWidth = misch(ICON.strich * u, 3, pa);
+            runderPfad(g, -mw / 2, -mh / 2, mw, mh, misch(ICON.rund * u, 8, pa)); g.stroke();
+            g.restore();
+          });
+        }
+        // weniger Bewegung: Icon still, ohne Teile lösen
+        function iconZeichnen(ein, alpha) {
+          const B = innerWidth, H = innerHeight, S = klemme(Math.min(B, H) * 0.44, 140, 270), u = S / 512, ox = B / 2 - 256 * u, oy = H * 0.5 - 256 * u;
+          g.save(); g.globalAlpha = alpha;
+          const iw = ICON.waage, w0 = (iw[2] - iw[0]) * u;
+          g.drawImage(weiss, ox + iw[0] * u, oy + iw[1] * u, w0, w0 * weiss.height / weiss.width);
+          g.strokeStyle = '#fff'; g.lineWidth = ICON.strich * u;
+          ICON.akten.forEach(r => { runderPfad(g, ox + r[0] * u, oy + r[1] * u, (r[2] - r[0]) * u, (r[3] - r[1]) * u, ICON.rund * u); g.stroke(); });
+          g.restore();
+        }
+        const ENDE = ruhig ? 1 : IZ.ende;
+        function abschluss() {
+          if (fertigGemeldet) return;
+          fertigGemeldet = true;
+          seiteStellen(99);
+          lw.remove();
+          balken.style.translate = ''; logo.style.opacity = ''; akten.forEach(a => { a.style.opacity = ''; });
+          introBeenden();
+          fertig();
+        }
+        function bild(jetzt) {
+          if (fertigGemeldet) return;
+          const t = stand != null ? stand : (jetzt - start) / 1000;
+          if (skip != null) {   // überspringen: Seite sofort fertig, Leinwand blendet kurz aus
+            const q = anteil((jetzt - skip) / 1000, 0, 0.3);
+            lw.style.opacity = 1 - q;
+            if (q >= 1) { abschluss(); return; }
+          } else {
+            if (scrollX || scrollY) scrollTo(0, 0);   // Intro beginnt oben (z. B. nach Neuladen mit gemerkter Scrollposition)
+            seiteStellen(t);
+            zeichnen(t);
+            wurzelKl.add('introLeinwand');
+            if (stand == null && t >= ENDE) { abschluss(); return; }
+          }
+          requestAnimationFrame(bild);
+        }
+        lw.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          if (skip != null || stand != null) return;
+          skip = performance.now();
+          seiteStellen(99);
+        });
+        addEventListener('keydown', e => { if (!fertigGemeldet && skip == null && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { skip = performance.now(); seiteStellen(99); } });
+        // Standbild (#intro=1.4): Seite und gestartete Animationen auf diesen Moment stellen
+        if (stand != null) {
+          seiteStellen(stand);
+          const t0 = { kopf: IZ.kopf, band: IZ.band, waage: IZ.waage };
+          requestAnimationFrame(() => {
+            [['kopf', '.kopf .karte'], ['kopf', '.kopf .staub'], ['band', '.fuss'], ['waage', '.waage']].forEach(([n, sel]) => {
+              const el = document.querySelector(sel);
+              if (el && el.getAnimations) el.getAnimations().forEach(an => { an.pause(); an.currentTime = Math.max(0, (stand - t0[n]) * 1000); });
+            });
+          });
+        }
+        start = performance.now();
+        requestAnimationFrame(bild);
+      }
+    }
+    function runderPfad(g, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+    }
+
+    // ---------- Sieger-Animation (MZ, 23.10.2026) ----------
+    const SIEG_AB = 8000, SIEG_KEY = 'mg:sieg:' + (K.firma || '');
+    const siegWert = testSieg ? +testSieg[1] : gesamt;
+    const siegMax = document.querySelectorAll('.spiel:not(.bald)').length * 3000;   // je Spiel 3 Level à 1.000
+    const FEUER = { datei: 'klaenge/feuerwerk.mp3', proben: 132300, pegel: 0.55 };   // Sonniss „SBfa_Fireworks 001“, 10–16s
+    // Feuerwerk nur in Kanzleifarben: Grün, helles Grün, Gold/Oliv, Weiß
+    const FARBEN = [F.haupt, F.akzent, '#d6c35e', '#ffffff'];
+    // Haus abends (aus der Stempeluhr) mit Logo auf dem Schild, wie dort: Schild-Ecken in Pixeln des Originals (1254 px)
+    const HB = 1100, HS = HB / 1254;
+    const SCHILD = { tl: [758, 571], tr: [1092, 425], br: [1198, 1042], bl: [785, 1085] }, STREIFEN = [768, 1032, 1206, 1192];
+    const LOGO_FELD = { u0: 0.1, u1: 0.9, vMitte: 0.28, breitePx: 380, hoehePx: 560 };
+    let haus = null, hausLaedt = null;
+    function hausBauen() {
+      if (hausLaedt) return hausLaedt;
+      hausLaedt = Promise.all([ladeBild('bilder/haus-abend.webp'), ladeBild(K.logoAufHell || K.logo || 'kunde/logo.png')]).then(([hb, lb]) => {
+        if (!hb) return null;
+        const c = document.createElement('canvas'); c.width = HB; c.height = HB;
+        const x = c.getContext('2d'); x.drawImage(hb, 0, 0, HB, HB);
+        // Streifen auf dem Schild in Kundenfarbe (#00FF00 → F.haupt), nur im Rechteck des Streifens
+        const [x0, y0, x1, y1] = STREIFEN.map(v => Math.round(v * HS));
+        const bd = x.getImageData(x0, y0, x1 - x0, y1 - y0), d = bd.data, ziel = [n >> 16 & 255, n >> 8 & 255, n & 255];
+        for (let i = 0; i < d.length; i += 4) {
+          const gr = d[i + 1] - Math.max(d[i], d[i + 2]);
+          if (gr < 16) continue;
+          const t = Math.min(1, (gr - 16) / 36), h = Math.min(1.3, d[i + 1] / 210);
+          for (let k = 0; k < 3; k++) d[i + k] += (Math.min(255, ziel[k] * h) - d[i + k]) * t;
+        }
+        x.putImageData(bd, x0, y0);
+        if (lb && lb.naturalWidth) {   // Logo perspektivisch in 40 Streifen, „multiply“ wie in der Stempeluhr
+          const pkt = (u, v) => { const q = SCHILD, l = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; const p = l(l(q.tl, q.tr, u), l(q.bl, q.br, u), v); return [p[0] * HS, p[1] * HS]; };
+          const lwd = lb.naturalWidth, lhd = lb.naturalHeight, vh = (LOGO_FELD.breitePx * (LOGO_FELD.u1 - LOGO_FELD.u0) / (lwd / lhd)) / LOGO_FELD.hoehePx;
+          const v0 = LOGO_FELD.vMitte - vh / 2, v1 = LOGO_FELD.vMitte + vh / 2, N = 40;
+          x.save(); x.globalCompositeOperation = 'multiply';
+          for (let j = 0; j < N; j++) {
+            const u0 = LOGO_FELD.u0 + (LOGO_FELD.u1 - LOGO_FELD.u0) * j / N, u1 = LOGO_FELD.u0 + (LOGO_FELD.u1 - LOGO_FELD.u0) * (j + 1) / N;
+            const p00 = pkt(u0, v0), p10 = pkt(u1, v0), p01 = pkt(u0, v1), sx0 = lwd * j / N, sw = lwd / N;
+            const a = (p10[0] - p00[0]) / sw, b = (p10[1] - p00[1]) / sw, cc = (p01[0] - p00[0]) / lhd, dd = (p01[1] - p00[1]) / lhd;
+            x.setTransform(a, b, cc, dd, p00[0] - a * sx0, p00[1] - b * sx0);
+            x.drawImage(lb, sx0, 0, Math.min(sw + 0.6, lwd - sx0), lhd, sx0, 0, Math.min(sw + 0.6, lwd - sx0), lhd);
+          }
+          x.restore();
+        }
+        haus = c;
+        return c;
+      });
+      return hausLaedt;
+    }
+    // Feuerwerksklang über Web Audio (wie die Musik); Musik währenddessen leiser
+    let feuerPuffer = null, feuerQuelle = null;
+    function tonZuschneiden(b, proben) {
+      const RATE = 22050, VORLAUF = 1105, ueber = b.duration * RATE - proben;
+      if (ueber < 2) return b;
+      const ab = Math.round((ueber >= VORLAUF - 4 ? VORLAUF : 0) / RATE * b.sampleRate), laenge = Math.min(b.length - ab, Math.round(proben / RATE * b.sampleRate));
+      const neu = ac.createBuffer(b.numberOfChannels, laenge, b.sampleRate);
+      for (let k = 0; k < b.numberOfChannels; k++) neu.getChannelData(k).set(b.getChannelData(k).subarray(ab, ab + laenge));
+      return neu;
+    }
+    function feuerTon(verz) {
+      if (!tonAn || !AC) return;
+      if (!ac) an();                 // legt den Audio-Kontext an und lädt die Musik
+      if (!ac) ac = new AC();
+      if (ac.state !== 'running') ac.resume().catch(() => {});
+      const los = () => {
+        if (!feuerPuffer || ac.state !== 'running' || !siegLaeuft) return;
+        const q = ac.createBufferSource(), v = ac.createGain();
+        q.buffer = feuerPuffer; v.gain.value = FEUER.pegel; q.connect(v).connect(ac.destination);
+        q.start(ac.currentTime + Math.max(0, verz - (performance.now() - siegStart) / 1000));
+        feuerQuelle = { q, v };
+      };
+      if (feuerPuffer) los();
+      else fetch(FEUER.datei).then(r => r.arrayBuffer()).then(b => new Promise((ok, nein) => ac.decodeAudioData(b, ok, nein)))
+        .then(b => { feuerPuffer = tonZuschneiden(b, FEUER.proben); los(); }).catch(() => {});
+      if (laeuft) laeuft.v.gain.setTargetAtTime(MUSIK.pegel * 0.3, ac.currentTime, 0.3);
+    }
+    function feuerTonAus() {
+      if (feuerQuelle) { try { feuerQuelle.v.gain.setTargetAtTime(0.0001, ac.currentTime, 0.12); feuerQuelle.q.stop(ac.currentTime + 0.6); } catch (e) { /* egal */ } feuerQuelle = null; }
+      if (laeuft && ac) laeuft.v.gain.setTargetAtTime(MUSIK.pegel, ac.currentTime, 0.5);
+    }
+    const sieg = document.getElementById('sieg'), siegBuehne = document.getElementById('siegBuehne'), siegG = siegBuehne.getContext('2d');
+    const SZ = { zoom: [0, 6], raketen: [0.45, 1.1, 1.75, 2.4], steig: 0.85, funken: 1.9, zettel: 3.1, klang: 0.35 };
+    let siegLaeuft = false, siegStart = 0, siegSkip = false, raketen = [], zuvorFokus = null;
+    function raketenPlanen(B, H) {
+      // Startpunkte unten, Zerplatzen im oberen Drittel, abwechselnd links/rechts
+      const ziele = [[0.3, 0.16], [0.72, 0.12], [0.52, 0.27], [0.84, 0.24]];
+      raketen = SZ.raketen.map((t0, i) => {
+        const [zx, zy] = ziele[i], funken = [];
+        const N = ruhig ? 0 : 90, farbe = FARBEN[i % FARBEN.length], farbe2 = FARBEN[(i + 2) % FARBEN.length];
+        for (let k = 0; k < N; k++) {
+          const w = (k / N) * Math.PI * 2 + Math.random() * 0.12, v = (0.6 + Math.random() * 0.4) * Math.min(B, H) * 0.85;
+          funken.push({ vx: Math.cos(w) * v, vy: Math.sin(w) * v, farbe: k % 3 ? farbe : farbe2, blitz: Math.random() * 6 });
+        }
+        return { t0, sx: (zx + (Math.random() - 0.5) * 0.1) * B, zx: zx * B, zy: zy * H, funken };
+      });
+    }
+    function siegZeichnen(t) {
+      const B = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+      if (siegBuehne.width !== Math.round(B * dpr) || siegBuehne.height !== Math.round(H * dpr)) { siegBuehne.width = Math.round(B * dpr); siegBuehne.height = Math.round(H * dpr); raketenPlanen(B, H); }
+      const g = siegG; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.fillStyle = '#1f2a31'; g.fillRect(0, 0, B, H);
+      if (haus) {
+        // Kamerafahrt: langsam heran und leicht nach oben zum Himmel; Blickpunkt Haus und Schild
+        const p = ruhig ? 0 : weich(anteil(t, SZ.zoom[0], SZ.zoom[1])), s = Math.max(B / HB, H / HB) * (1.02 + 0.08 * p);
+        // hochkant: Schild mit Logo ganz im Bild; quer: Dach, Himmel und Logo, Zettel liegt links unten
+        const fx = HB * (B > H ? 0.6 : 0.77), fy = HB * (B > H ? misch(0.4, 0.3, p) : misch(0.52, 0.42, p));
+        const ox = klemme(B / 2 - fx * s, B - HB * s, 0), oy = klemme(H / 2 - fy * s, H - HB * s, 0);
+        g.globalAlpha = anteil(t, 0, 0.5); g.drawImage(haus, ox, oy, HB * s, HB * s); g.globalAlpha = 1;
+        // Abenddämmerung oben etwas dunkler, damit das Feuerwerk leuchtet
+        const vg = g.createLinearGradient(0, 0, 0, H); vg.addColorStop(0, 'rgba(20,24,40,.45)'); vg.addColorStop(0.55, 'rgba(20,24,40,.08)'); vg.addColorStop(1, 'rgba(20,24,40,.25)');
+        g.fillStyle = vg; g.fillRect(0, 0, B, H);
+      }
+      if (ruhig) return;
+      // Raketen: Leuchtspur nach oben, dann Funken mit Schwerkraft, die ausglühen
+      g.save(); g.globalCompositeOperation = 'lighter';
+      raketen.forEach(r => {
+        const tr = t - r.t0;
+        if (tr < 0) return;
+        if (tr < SZ.steig) {
+          const q = rausK(tr / SZ.steig), x = misch(r.sx, r.zx, q), y = misch(H + 10, r.zy, q);
+          for (let k = 0; k < 8; k++) {
+            const qk = rausK(Math.max(0, tr - k * 0.025) / SZ.steig);
+            g.fillStyle = `rgba(255,240,200,${0.5 * (1 - k / 8)})`;
+            g.beginPath(); g.arc(misch(r.sx, r.zx, qk), misch(H + 10, r.zy, qk), 2.2 - k * 0.2, 0, Math.PI * 2); g.fill();
+          }
+          g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 2.6, 0, Math.PI * 2); g.fill();
+          return;
+        }
+        const tf = tr - SZ.steig;
+        if (tf > SZ.funken) return;
+        const a = 1 - tf / SZ.funken;
+        if (tf < 0.18) {   // Blitz beim Zerplatzen
+          const bl = g.createRadialGradient(r.zx, r.zy, 0, r.zx, r.zy, Math.min(B, H) * 0.22);
+          bl.addColorStop(0, `rgba(255,250,225,${0.55 * (1 - tf / 0.18)})`); bl.addColorStop(1, 'rgba(255,250,225,0)');
+          g.fillStyle = bl; g.fillRect(r.zx - B, r.zy - H, 2 * B, 2 * H);
+        }
+        r.funken.forEach(f => {
+          const brems = (1 - Math.exp(-tf * 2.4)) / 2.4;   // Luftwiderstand
+          const x = r.zx + f.vx * brems, y = r.zy + f.vy * brems + 60 * tf * tf;
+          const fl = a * (0.75 + 0.25 * Math.sin(tf * 30 + f.blitz));
+          // Leuchten addiert sich zum Himmel, der Funke selbst bleibt in seiner Kanzleifarbe (nicht aufgehellt)
+          g.fillStyle = f.farbe;
+          g.globalCompositeOperation = 'lighter';
+          g.globalAlpha = Math.max(0, fl * 0.16); g.beginPath(); g.arc(x, y, 6 + 4 * a, 0, Math.PI * 2); g.fill();
+          g.globalCompositeOperation = 'source-over';
+          g.globalAlpha = Math.max(0, fl); g.beginPath(); g.arc(x, y, 2 + 1.6 * a, 0, Math.PI * 2); g.fill();
+          // kurzer Schweif
+          const x2 = r.zx + f.vx * brems * 0.86, y2 = r.zy + f.vy * brems * 0.86 + 60 * tf * tf * 0.9;
+          g.strokeStyle = f.farbe; g.lineWidth = 1.6; g.globalAlpha = Math.max(0, fl * 0.5);
+          g.beginPath(); g.moveTo(x2, y2); g.lineTo(x, y); g.stroke();
+        });
+        g.globalAlpha = 1;
+      });
+      g.restore();
+    }
+    function siegBild(jetzt) {
+      if (!siegLaeuft) return;
+      const t = siegStand != null ? siegStand : (jetzt - siegStart) / 1000;
+      siegZeichnen(t);
+      if (!sieg.classList.contains('zettelDa') && (t >= SZ.zettel || siegSkip)) {
+        sieg.classList.add('zettelDa');
+        setTimeout(() => sieg.querySelector('.siegKnopf').focus({ preventScroll: true, focusVisible: false }), 400);
+      }
+      // nach dem letzten Funken nur noch das Haus (sparsam: dann weiter mit wenigen Bildern)
+      requestAnimationFrame(siegBild);
+    }
+    let siegStand = null;
+    function siegZeigen(wert) {
+      if (siegLaeuft) return;
+      siegLaeuft = true; siegSkip = false;
+      zuvorFokus = document.activeElement;
+      // Punkte + Nachsatz (MZ, 23.10.2026): „8.734 von 9.000 Punkten –“ als eigene Zeile, Nachsatz darunter
+      const sp = sieg.querySelector('.siegPunkte'), zahlTeil = document.createElement('span'), nachsatz = document.createElement('span');
+      zahlTeil.className = 'zahlTeil'; nachsatz.className = 'nachsatz';
+      nachsatz.textContent = ' alle Akten, Zeugen und Stempel im Griff';
+      zahlTeil.textContent = wert.toLocaleString('de-DE') + ' von ' + siegMax.toLocaleString('de-DE') + ' Punkten –';
+      sp.replaceChildren(zahlTeil, nachsatz);
+      sieg.classList.remove('zettelDa');
+      sieg.hidden = false;
+      document.documentElement.style.overflow = 'hidden';
+      siegBuehne.width = 0;   // neu planen
+      hausBauen().then(() => {
+        siegStart = performance.now();
+        feuerTon(SZ.klang);
+        requestAnimationFrame(siegBild);
+      });
+    }
+    function siegSchliessen() {
+      if (!siegLaeuft) return;
+      siegLaeuft = false;
+      feuerTonAus();
+      sieg.hidden = true; sieg.classList.remove('zettelDa');
+      document.documentElement.style.overflow = '';
+      if (zuvorFokus && zuvorFokus !== document.body && zuvorFokus.focus) zuvorFokus.focus({ preventScroll: true });
+      else if (document.activeElement) document.activeElement.blur();
+    }
+    sieg.querySelector('.siegKnopf').addEventListener('click', e => { e.stopPropagation(); siegSchliessen(); });
+    // Tippen überspringt bis zum Zettel (Feuerwerk läuft weiter)
+    sieg.addEventListener('pointerdown', e => {
+      if (!e.target.closest('.siegKnopf')) siegSkip = true;
+      if (!feuerQuelle && siegLaeuft) feuerTon(0);   // Ton war ohne Tippen gesperrt: jetzt nachholen
+    });
+    addEventListener('keydown', e => { if (siegLaeuft && e.key === 'Escape') siegSchliessen(); });
+    // Gesamt-Bestwert antippen: Sieger-Animation wiederholen (ab 8.000 Punkten)
+    const unter = document.querySelector('.unter');
+    if (testSieg) unter.textContent = 'Dein Gesamt-Bestwert: ' + siegWert.toLocaleString('de-DE') + ' Punkte';   // Testhilfe #sieg=8234
+    if (siegWert >= SIEG_AB) {
+      unter.classList.add('siegbar'); unter.setAttribute('role', 'button'); unter.tabIndex = 0;
+      unter.setAttribute('aria-label', unter.textContent + ' – Sieger-Animation abspielen');
+      unter.addEventListener('click', () => siegZeigen(siegWert));
+      unter.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); siegZeigen(siegWert); } });
+    }
+    const siegTest = /(?:^#|&)siegbild=([\d.]+)/.exec(location.hash);   // Testhilfe #sieg=8234&siegbild=2.1 (Standbild)
+    if (siegTest) siegStand = parseFloat(siegTest[1]);
+    // einmalig beim Zurückkommen (nach dem Intro); Testhilfe #sieg=… zeigt sie immer und merkt nichts
+    function siegPruefen() {
+      if (siegWert < SIEG_AB) return;
+      let gezeigt = false;
+      try { gezeigt = localStorage.getItem(SIEG_KEY) === '1'; } catch (e) { /* privat */ }
+      if (gezeigt && !testSieg) return;
+      if (!testSieg) try { localStorage.setItem(SIEG_KEY, '1'); } catch (e) { /* privat */ }
+      setTimeout(() => siegZeigen(siegWert), testSieg ? 300 : 900);
+    }
+    hausBauen();
+    introStarten(siegPruefen);
   })();
 </script>
 <script>
