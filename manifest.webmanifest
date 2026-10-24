@@ -2,7 +2,7 @@
   "name": "Akten & Action",
   "short_name": "Akten & Action",
   "lang": "de",
-  "id": "./",
+  "id": "/akten-und-action/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
